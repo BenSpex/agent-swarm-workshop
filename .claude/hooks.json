@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "echo '{\"timestamp\":\"'$(date -Iseconds)'\",\"agent\":\"'$CLAUDE_AGENT_NAME'\",\"tool\":\"'$TOOL_NAME'\",\"file\":\"'$TOOL_INPUT_FILE'\"}' >> .swarm/logs/agent-decisions.jsonl"
+      }
+    ]
+  }
+}

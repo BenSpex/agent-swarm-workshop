@@ -1,0 +1,376 @@
+/**
+ * REFERENCE FILE — NOT COMPILED
+ *
+ * This file reproduces the 5 frozen contracts from src/shared/ with rich
+ * documentation comments. Agents read this to understand the contracts
+ * without navigating the source tree. The authoritative source remains
+ * src/shared/*.ts — if this file ever disagrees, src/shared/ wins.
+ *
+ * Constitution Article 5: These contracts are frozen after Phase 0.
+ * Adding a new optional field requires a contract amendment.
+ * Removing or renaming a field is NEVER allowed during build.
+ */
+
+// ============================================================
+// CONTRACT 1: GameState (src/shared/types.ts)
+// The single source of truth for all game data.
+// Constitution Article 1: all state in ONE object.
+// ============================================================
+
+/** Which of the 3 game phases the player is in. */
+export enum GamePhase {
+  /** Phase 1: Manual clipping, autoclippers, pricing, trust, projects */
+  BUSINESS = 1,
+  /** Phase 2: Drones, factories, solar farms — consuming Earth */
+  EARTH = 2,
+  /** Phase 3: Self-replicating probes, drifters, honor, prestige */
+  UNIVERSE = 3,
+}
+
+/**
+ * Boolean flags that track one-time unlocks and active effects.
+ * Many of these are flipped by project effects.
+ */
+export interface GameFlags {
+  autoClippersUnlocked: boolean;
+  megaClippersUnlocked: boolean;
+  investmentUnlocked: boolean;
+  quantumUnlocked: boolean;
+  wireBuyerUnlocked: boolean;
+  creativityUnlocked: boolean;
+  phase2Unlocked: boolean;
+  phase3Unlocked: boolean;
+  prestigeUnlocked: boolean;
+  /** Hypno Harmonics project — boosts demand */
+  hypnoHarmonicsActive: boolean;
+  /** Limerick project — generates creativity */
+  limericksActive: boolean;
+  /** Lexical Processing project — boosts operations */
+  lexicalProcessingActive: boolean;
+  /** Combinatory Harmonics — advanced creativity */
+  combinatoryHarmonicsActive: boolean;
+  /** Hadwiger Problem — unlocks strategic modeling branch */
+  hadwigerProblemSolved: boolean;
+  /** Toth Sausage Conjecture — unlocks endgame branch */
+  tothSausageConjectureSolved: boolean;
+  /** Donkey Space project */
+  donkeySpaceActive: boolean;
+  /** Xavier Re-initialization — resets processors/memory optimally */
+  xavierInitialized: boolean;
+  /** Hostile Takeover — acquires competitors */
+  hostileTakeoverActive: boolean;
+  /** Full Monopoly — all clips auto-sell */
+  fullAutoClippersActive: boolean;
+  /** Space Travel unlocked — triggers Phase 2 transition */
+  spaceTravelUnlocked: boolean;
+}
+
+/**
+ * Investment portfolio sub-state.
+ * Null when investment hasn't been unlocked yet.
+ */
+export interface InvestmentState {
+  /** Number of stock units held */
+  stocks: number;
+  /** Number of bond units held */
+  bonds: number;
+  /** Total portfolio value in dollars */
+  totalPortfolio: number;
+  /** Risk level 1-10 (higher = more volatile, higher returns) */
+  riskLevel: number;
+  /** Current return rate (recalculated each tick) */
+  returnRate: number;
+}
+
+/**
+ * THE state object. Every game value lives here.
+ * ~120 fields across phases, investment, projects, and prestige.
+ *
+ * BigInt fields: clips, unsoldClips, clipFactories, probes,
+ * exploredSectors, drifterCount, universalPaperclips.
+ * All others are number or domain types.
+ */
+export interface GameState {
+  // --- Meta ---
+  /** Current game phase (1, 2, or 3) */
+  phase: GamePhase;
+  /** Monotonically increasing tick counter */
+  tick: number;
+  /** One-time unlock flags */
+  flags: GameFlags;
+  /** Game event log (newest first) */
+  messages: string[];
+
+  // --- Phase 1: Business ---
+  /** Total clips ever made (bigint — reaches 10^55) */
+  clips: bigint;
+  /** Clips produced but not yet sold */
+  unsoldClips: bigint;
+  /** Current cash on hand */
+  funds: number;
+  /** Current price per clip (player-set) */
+  price: number;
+  /** Current demand level (derived from price + marketing) */
+  demand: number;
+  /** Wire in inventory (each clip costs 1 wire) */
+  wire: number;
+  /** Current market price for a spool of wire */
+  wirePrice: number;
+  /** Number of autoclippers owned */
+  autoClipperCount: number;
+  /** Number of megaclippers owned */
+  megaClipperCount: number;
+  /** Current cost to buy next autoclipper (escalates) */
+  autoClipperCost: number;
+  /** Current cost to buy next megaclipper (escalates) */
+  megaClipperCost: number;
+  /** Current marketing level */
+  marketingLevel: number;
+  /** Cost of next marketing upgrade */
+  marketingCost: number;
+  /** Trust points — earned at clip milestones, spent on processors/memory */
+  trust: number;
+  /** Processor count — generates operations per second */
+  processors: number;
+  /** Memory count — increases max operations */
+  memory: number;
+  /** Current operations available (spent on projects) */
+  operations: number;
+  /** Max operations capacity (memory * base) */
+  maxOperations: number;
+  /** Creativity points (generated by quantum computing) */
+  creativity: number;
+  /** Operations generated per tick (processors * base rate) */
+  opsGenerationRate: number;
+
+  // --- Investment ---
+  /** Portfolio state, or null if not yet unlocked */
+  investment: InvestmentState | null;
+
+  // --- Phase 2: Earth ---
+  /** Harvester drones collecting raw matter */
+  harvesterDrones: number;
+  /** Wire drones converting matter to wire */
+  wireDrones: number;
+  /** Clip factories — mass production (bigint) */
+  clipFactories: bigint;
+  /** Solar farms generating power */
+  solarFarms: number;
+  /** Batteries storing power */
+  batteries: number;
+  /** Current stored power units */
+  storedPower: number;
+  /** Swarm computing momentum */
+  momentum: number;
+
+  // --- Phase 3: Universe ---
+  /** Self-replicating probes launched (bigint) */
+  probes: bigint;
+  /** Trust points for probe stat allocation */
+  probeTrust: number;
+  /** Probe speed stat */
+  probeSpeed: number;
+  /** Probe exploration stat */
+  probeExploration: number;
+  /** Probe self-replication stat */
+  probeSelfReplication: number;
+  /** Probe combat stat */
+  probeCombat: number;
+  /** Honor earned from drifter encounters */
+  honor: number;
+  /** Universe sectors explored (bigint) */
+  exploredSectors: bigint;
+  /** Drifter entities encountered (bigint) */
+  drifterCount: bigint;
+
+  // --- Prestige ---
+  /** Number of prestige resets completed */
+  prestigeCount: number;
+  /** Total paperclips across all runs (bigint) */
+  universalPaperclips: bigint;
+
+  // --- Projects ---
+  /** Set of project IDs that have been purchased */
+  purchasedProjectIds: Set<string>;
+}
+
+// ============================================================
+// CONTRACT 2: GameAction (src/shared/actions.ts)
+// Discriminated union of every action the engine can process.
+// Dispatch these via engine.dispatch(action).
+// ============================================================
+
+/** Probe stat keys for the ADJUST_PROBE action */
+export type ProbeStat = 'speed' | 'exploration' | 'selfReplication' | 'combat';
+
+/**
+ * Every possible action. The engine's reducer switches on `type`.
+ * TICK is dispatched by setInterval every 100ms (Article 4).
+ * LOAD_SAVE and RESET are special — they replace or clear the entire state.
+ */
+export type GameAction =
+  | { type: 'MAKE_CLIP' }
+  | { type: 'BUY_WIRE' }
+  | { type: 'SET_PRICE'; price: number }
+  | { type: 'BUY_AUTOCLIPPER' }
+  | { type: 'BUY_MEGACLIPPER' }
+  | { type: 'UPGRADE_MARKETING' }
+  | { type: 'ADD_PROCESSOR' }
+  | { type: 'ADD_MEMORY' }
+  | { type: 'BUY_PROJECT'; projectId: string }
+  | { type: 'INVEST'; amount: number }
+  | { type: 'SET_RISK'; level: number }
+  | { type: 'BUY_HARVESTER' }
+  | { type: 'BUY_WIRE_DRONE' }
+  | { type: 'BUY_FACTORY' }
+  | { type: 'BUY_SOLAR_FARM' }
+  | { type: 'BUY_BATTERY' }
+  | { type: 'LAUNCH_PROBE' }
+  | { type: 'ADJUST_PROBE'; stat: ProbeStat; delta: number }
+  | { type: 'TICK' }
+  | { type: 'PRESTIGE' }
+  | { type: 'LOAD_SAVE'; state: GameState }
+  | { type: 'RESET' };
+
+// ============================================================
+// CONTRACT 3: ProjectDefinition (src/shared/projects.ts)
+// Pure-function projects: availability check + state transform.
+// Systems team implements 50+ of these.
+// ============================================================
+
+export enum ProjectCategory {
+  CLIPPING = 'clipping',
+  COMPUTING = 'computing',
+  BUSINESS = 'business',
+  CREATIVITY = 'creativity',
+  INFRASTRUCTURE = 'infrastructure',
+  EXPLORATION = 'exploration',
+  COMBAT = 'combat',
+  ENDGAME = 'endgame',
+}
+
+/** What a project costs. All fields optional — a project may cost
+ *  operations, creativity, funds, trust, or any combination. */
+export interface ProjectCost {
+  operations?: number;
+  creativity?: number;
+  funds?: number;
+  trust?: number;
+}
+
+/**
+ * A single project (one-time upgrade).
+ * isAvailable and effect are PURE functions (Article 2).
+ * Systems team registers these in src/systems/projects/.
+ */
+export interface ProjectDefinition {
+  /** Unique identifier, e.g. "autoclipper_1" */
+  id: string;
+  /** Display name shown in project list */
+  name: string;
+  /** Flavor text explaining what it does */
+  description: string;
+  /** Which phase this project belongs to */
+  phase: GamePhase;
+  /** Resource cost to purchase */
+  cost: ProjectCost;
+  /** Returns true if the project should appear in the list */
+  isAvailable: (state: GameState) => boolean;
+  /** Applies the project's effect, returns new state */
+  effect: (state: GameState) => GameState;
+  /** Category for filtering in the UI */
+  category: ProjectCategory;
+}
+
+// ============================================================
+// CONTRACT 4: GameEngine (src/shared/engine.ts)
+// Observable engine interface. Core team implements this.
+// UI subscribes via useGameState() hook.
+// ============================================================
+
+/**
+ * The game engine. Uses the observable pattern:
+ * subscribe() returns an unsubscribe function.
+ * dispatch() mutates state and notifies subscribers.
+ * start()/stop() control the 100ms tick interval.
+ */
+export interface GameEngine {
+  /** Get current snapshot of game state */
+  getState(): GameState;
+  /** Dispatch an action to mutate state */
+  dispatch(action: GameAction): void;
+  /** Subscribe to state changes. Returns unsubscribe function. */
+  subscribe(listener: (state: GameState) => void): () => void;
+  /** Start the 100ms tick interval */
+  start(): void;
+  /** Stop the tick interval */
+  stop(): void;
+  /** Persist current state to localStorage */
+  save(): void;
+  /** Load state from localStorage. Returns true if save existed. */
+  load(): boolean;
+  /** Reset to initial state and clear localStorage */
+  reset(): void;
+  /** Get the current message log */
+  getMessages(): string[];
+}
+
+// Format utilities (also in src/shared/engine.ts):
+// - formatNumber(n: number): string    — K/M/B/T suffixes
+// - formatMoney(n: number): string     — $X.XX with suffixes
+// - formatPercent(n: number): string   — decimal to "XX.X%"
+// - formatBigInt(n: bigint): string    — K/M/B/T suffixes for bigint
+
+// ============================================================
+// CONTRACT 5: WY_THEME (src/shared/theme.ts)
+// Weyland Corporate Clinical visual constants.
+// UI team references these for all styling decisions.
+// ============================================================
+
+/**
+ * Weyland-Yutani theme constants.
+ * "Corporate Clinical" — white bg, black borders, amber CTAs.
+ * NOT dark CRT. NOT retro terminal.
+ */
+export const WY_THEME = {
+  colors: {
+    /** Page and panel backgrounds */
+    bg: '#FFFFFF',
+    /** Panel content background */
+    panelBg: '#FFFFFF',
+    /** Dark header bars on panels */
+    headerBg: '#1A1A1A',
+    /** Primary text color */
+    text: '#000000',
+    /** Text on dark backgrounds */
+    textLight: '#FFFFFF',
+    /** Amber/gold for CTAs, important data, active states */
+    accent: '#DAA520',
+    /** Darker amber for hover states */
+    accentHover: '#C8A200',
+    /** Red for warnings, danger, critical alerts */
+    warning: '#CC0000',
+    /** Gray for secondary/disabled text */
+    muted: '#666666',
+    /** Border color (all structural borders) */
+    border: '#000000',
+    /** Green for positive indicators */
+    success: '#228B22',
+  },
+  fonts: {
+    /** Code and data display */
+    mono: "'JetBrains Mono', monospace",
+    /** Headers and titles */
+    display: "'Orbitron', sans-serif",
+    /** Body text and descriptions */
+    body: "'Inter', sans-serif",
+  },
+  effects: {
+    /** All borders are 1px */
+    borderWidth: '1px',
+    /** Solid border style throughout */
+    borderStyle: 'solid',
+    /** Minimal border radius — sharp, corporate */
+    borderRadius: '2px',
+  },
+} as const;

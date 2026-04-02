@@ -1,0 +1,16 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vitest run*)",
+      "Bash(git *)",
+      "Bash(kill *)",
+      "Bash(lsof *)",
+      "mcp__claude-in-chrome__*"
+    ]
+  }
+}
