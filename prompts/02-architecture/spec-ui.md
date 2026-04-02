@@ -200,8 +200,7 @@ Border: 1px solid #D4D4D0 (NOT black — light gray)
 - Panel borders are #D4D4D0 (light gray) NOT #000000 (black)
 - Panel header bars are #000000 (black) with white text
 - Gold accent is #D4A843 NOT #DAA520
-- JetBrains Mono EVERYWHERE — no other fonts
-- Orbitron for panel titles and headers
+- JetBrains Mono EVERYWHERE — no other fonts, no Orbitron, no Inter
 - NO scanlines, NO CRT glow, NO green-on-black
 - Grid layout with visible structural lines
 
@@ -258,13 +257,14 @@ Every component below MUST have the specified `data-testid`:
 
 ## Build Order
 
-### Minute 0-3: layout-theme
+### BUILD ORDER (STRICT)
 
-- Configure `tailwind.config.ts` with WY_THEME colors, fonts, spacing
-- Create `src/styles/global.css` -- base styles, font imports, structural borders, grid lines
-- Build `src/components/App.tsx` -- main layout with multi-column CSS grid
-- Build `src/components/Panel.tsx` -- reusable panel wrapper (dark header bar, white body, black border)
-- Import fonts: JetBrains Mono, Orbitron, Inter (from Google Fonts via CDN in `index.html`)
+**CRITICAL: NavSidebar.tsx must be the FIRST component. App.tsx must use sidebar+main layout from minute 0. Chrome L2 FAILS if nav-sidebar data-testid is missing.**
+
+1. **layout-theme (Minutes 0-5):** NavSidebar.tsx FIRST (260px sidebar, data-testid="nav-sidebar"), then App.tsx with sidebar+main flex layout, Panel.tsx, global.css (bg #F5F5F0, JetBrains Mono on body)
+2. **components-p1 (Minutes 3-8):** Phase 1 components inside Panel wrappers
+3. **message-log (Minutes 8-12):** ActivityLog, PhaseTransition, NotificationToast
+4. **components-p2p3 (Minutes 12-15):** Phase 2/3 components
 
 ### Minute 3-8: components-p1
 
@@ -283,7 +283,7 @@ Use `createMockState()` from `src/shared/mockState.ts` for development. The `use
 ### Minute 8-12: message-log
 
 - `src/components/MessageLog.tsx` -- scrolling feed, newest at top, auto-scroll
-- `src/components/PhaseTransition.tsx` -- full-screen overlay with Orbitron header, fade in/out
+- `src/components/PhaseTransition.tsx` -- full-screen overlay with JetBrains Mono header (28px bold), fade in/out
 - `src/components/NotificationToast.tsx` -- ephemeral alerts, auto-dismiss after 3 seconds
 
 ### Minute 12-15: components-p2p3

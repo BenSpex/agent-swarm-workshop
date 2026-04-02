@@ -121,16 +121,24 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 - PhaseTransition: full-screen overlay, Orbitron font for "PHASE 2" / "PHASE 3" header, fade animation
 - NotificationToast: positioned top-right, auto-dismiss after 3 seconds, amber accent border
 
-## Design Source: design.pen
+## Design Rules (CRITICAL — violations = Chrome L3 FAIL)
 
-The file `design.pen` at repo root is your source of truth. Open it in Pencil.dev.
+1. **FONT: JetBrains Mono is the ONLY font.** Do NOT use Orbitron or Inter anywhere. If you see them in theme.ts, IGNORE them. Every element uses JetBrains Mono.
 
-When assigning work to teammates:
-- Reference specific Pencil screens: "Implement Terminal Alpha screen from design.pen"
-- Reference specific Pencil components: "Build the Section Panel component from design.pen"
-- When scoring against the rubric, compare the live browser screenshot against the Pencil design — not just colors/fonts, but layout, spacing, and component hierarchy
+2. **LAYOUT: Sidebar + Main.** Every screen has a 260px NavSidebar on the left. App.tsx is `display:flex` with sidebar (260px fixed) + main content (flex-1). NOT a header-only layout.
 
-Your teammates' output must look like the Pencil designs. Generic placeholder UIs will be scored Theme Coherence < 3 = FAIL.
+3. **COLORS from Pencil (override theme.ts if different):**
+   - Page bg: #F5F5F0 (warm off-white, NOT pure white #FFFFFF)
+   - Panel borders: #D4D4D0 (light gray, NOT black #000000)  
+   - Panel headers: #000000 (black) with white text
+   - Gold accent: #D4A843 (NOT #DAA520)
+   - Muted text: #7A7A75
+
+4. **NavSidebar is MANDATORY** — Chrome L2 checks for data-testid="nav-sidebar". Missing = FAIL.
+
+5. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
+
+Reference image: `images/image.png` in repo root shows the target design with sidebar.
 
 ## Chrome MCP Verification (What the Orchestrator Checks)
 

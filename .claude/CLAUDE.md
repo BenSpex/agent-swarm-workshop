@@ -89,7 +89,8 @@ const testIds = document.querySelectorAll('[data-testid]');
 const found = Array.from(testIds).map(el => el.getAttribute('data-testid'));
 // REQUIRED: app, page-header, clip-button, metrics-ledger,
 // clip-counter, funds-display, wire-panel, price-display,
-// activity-log, autoclipper-panel, project-list
+// activity-log, autoclipper-panel, project-list, nav-sidebar
+// nav-sidebar is CRITICAL — if missing, layout is fundamentally wrong
 // Phase 2: drone-panel  |  Phase 3: probe-panel
 ```
 **Missing any = L2 FAIL → route to UI team**
@@ -112,6 +113,31 @@ JSON.stringify({
 })
 ```
 Also take `mcp__claude-in-chrome__computer` screenshot and score against rubric with vision.
+
+```js
+// POST-MORTEM FIX: Run 2 passed L3 with wrong layout because we only checked spot colors.
+// Now verify layout structure, correct background, correct borders, correct primary font.
+const sidebar = document.querySelector('[data-testid="nav-sidebar"]');
+const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
+const sidebarOk = sidebarRect && sidebarRect.width >= 200 && sidebarRect.width <= 320;
+
+const pageBg = getComputedStyle(document.body).backgroundColor;
+const pageBgOk = pageBg.includes('245') && pageBg.includes('240');
+// Must be rgb(245,245,240) = #F5F5F0, NOT rgb(255,255,255) = #FFFFFF
+
+const anyPanel = document.querySelector('[data-testid="metrics-ledger"]');
+const borderColor = anyPanel ? getComputedStyle(anyPanel).borderColor : '';
+const borderOk = !borderColor.includes('rgb(0, 0, 0)');
+// Borders must be #D4D4D0 (light gray), NOT #000000 (black)
+
+const bodyFont = getComputedStyle(document.body).fontFamily;
+const fontOk = bodyFont.toLowerCase().includes('jetbrains');
+// JetBrains Mono must be primary — NOT Inter, NOT Times New Roman
+
+JSON.stringify({ sidebarOk, sidebarWidth: sidebarRect?.width, pageBgOk, pageBg, borderOk, borderColor, fontOk, bodyFont })
+// ALL must be true — any false = L3 FAIL → route to UI team
+```
+
 **Wrong colors/fonts = L3 FAIL → route to UI team**
 
 ### L4 — Full Gameplay Verification

@@ -327,15 +327,16 @@ export interface GameEngine {
 // UI team references these for all styling decisions.
 // ============================================================
 
+// CRITICAL: JetBrains Mono is the ONLY font. Orbitron and Inter removed post-mortem.
 /**
  * Weyland-Yutani theme constants.
- * "Corporate Clinical" — white bg, black borders, amber CTAs.
+ * "Corporate Clinical" — warm off-white bg, light gray borders, gold CTAs.
  * NOT dark CRT. NOT retro terminal.
  */
 export const WY_THEME = {
   colors: {
     /** Page and panel backgrounds */
-    bg: '#FFFFFF',
+    bg: '#F5F5F0',
     /** Panel content background */
     panelBg: '#FFFFFF',
     /** Dark header bars on panels */
@@ -344,26 +345,22 @@ export const WY_THEME = {
     text: '#000000',
     /** Text on dark backgrounds */
     textLight: '#FFFFFF',
-    /** Amber/gold for CTAs, important data, active states */
-    accent: '#DAA520',
-    /** Darker amber for hover states */
+    /** Gold for CTAs, important data, active states */
+    accent: '#D4A843',
+    /** Darker gold for hover states */
     accentHover: '#C8A200',
     /** Red for warnings, danger, critical alerts */
     warning: '#CC0000',
     /** Gray for secondary/disabled text */
-    muted: '#666666',
+    muted: '#7A7A75',
     /** Border color (all structural borders) */
-    border: '#000000',
+    border: '#D4D4D0',
     /** Green for positive indicators */
-    success: '#228B22',
+    success: '#2D8A4E',
   },
   fonts: {
-    /** Code and data display */
-    mono: "'JetBrains Mono', monospace",
-    /** Headers and titles */
-    display: "'Orbitron', sans-serif",
-    /** Body text and descriptions */
-    body: "'Inter', sans-serif",
+    /** Primary font — used EVERYWHERE (headers, body, data, buttons) */
+    primary: "'JetBrains Mono', monospace",
   },
   effects: {
     /** All borders are 1px */
