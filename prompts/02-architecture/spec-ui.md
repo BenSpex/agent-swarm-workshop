@@ -25,36 +25,123 @@ You may READ `src/shared/*` but never modify it. Any edit outside your directori
 
 ---
 
-## Design Source of Truth: design.pen
+## Design Layout Spec (extracted from design.pen)
 
-The Pencil design file `design.pen` at repo root defines the exact screens and components to implement. Your job is to translate these designs pixel-for-pixel into React + Tailwind. Do NOT invent layouts — implement what's in the design.
+DO NOT invent layouts. Implement exactly this structure.
 
-### Screens (implement in this order)
-1. **Terminal Alpha (Manufacturing)** — Phase 1 main view: clip manufacturing, automation, market strategy, metrics ledger, activity log
-2. **Computational Resources** — Trust/computing panel: operations, creativity, processor/memory allocation
-3. **Strategic Projects** — Quantum computing matrix, extract operations, initiative cards
-4. **Galactic Expansion** — Phase 3: probe stats, probe config, combat panel
+### Design Tokens (from Pencil)
+```css
+--background: #F5F5F0;    /* page bg — warm off-white, NOT pure white */
+--foreground: #1A1A1A;    /* text */
+--card: #FFFFFF;           /* panel/card bg */
+--border: #D4D4D0;         /* panel borders — light gray, NOT black */
+--muted-foreground: #7A7A75; /* secondary text */
+--accent-gold: #D4A843;    /* gold CTA accent */
+--black: #000000;           /* panel headers */
+--white: #FFFFFF;
+--color-success-foreground: #2D8A4E;
+--color-warning-foreground: #D4A843;
+--color-error-foreground: #CC3314;
+--font-primary: 'JetBrains Mono', monospace;  /* used EVERYWHERE */
+--font-secondary: 'JetBrains Mono', monospace;
+```
 
-### Pencil Components → React Files
+CRITICAL: The font is JetBrains Mono everywhere — headers, labels, data, buttons. NOT Orbitron. NOT Inter.
 
-| Pencil Component | React File | data-testid |
-|-----------------|------------|-------------|
-| Section Panel | `Panel.tsx` | — (wrapper) |
-| Button Primary | `AmberButton.tsx` | — (reusable) |
-| Button Outline | `OutlineButton.tsx` | — (reusable) |
-| Nav Sidebar + Nav Item | `NavSidebar.tsx` | `nav-sidebar` |
-| Metric Display | `MetricDisplay.tsx` | — (reusable) |
-| Big Metric | `BigMetric.tsx` | — (reusable) |
+### App Shell Layout (ALL screens share this)
+```
+┌──────────────────────────────────────────────────┐
+│ 260px SIDEBAR  │  MAIN CONTENT (flex-1)          │
+│                │                                  │
+│ WEYLAND CORP   │  TERMINAL ALPHA                  │
+│ AI INIT:       │  Manufacturing Interface          │
+│ MU-TH-UR 6000 │                                  │
+│                │  ┌─────┬──────────┬─────┐       │
+│ ▸ Terminal     │  │LEFT │ CENTER   │RIGHT│       │
+│   Alpha        │  │280px│ flex-1   │280px│       │
+│ ▸ Computational│  │     │          │     │       │
+│ ▸ Strategic    │  │     │          │     │       │
+│ ▸ Galactic     │  └─────┴──────────┴─────┘       │
+│                │                                  │
+│ ● SYS.STATUS  │                                  │
+│   NOMINAL      │                                  │
+└──────────────────────────────────────────────────┘
+```
+
+### NavSidebar.tsx (260px, left side, ALL screens)
+- data-testid="nav-sidebar"
+- Background: $--card (#FFFFFF)
+- Border right: 1px solid $--border (#D4D4D0)
+- Logo: shield icon + "WEYLAND CORP" (JetBrains Mono 14px 700)
+- Subtitle: "AI INIT: MU-TH-UR 6000" (10px, muted)
+- Status badge: gold bg, black text, "COMPUTING" (10px 700)
+- Nav items: 4 items, each 44px tall, JetBrains Mono 13px
+  - Active item: bg $--tile (#F5F5F5), left 3px gold border, bold
+  - Inactive: muted text
+- Footer: green dot + "SYS.STATUS" + "NOMINAL" (green, 10px)
+
+### Panel.tsx (reusable wrapper — EVERY data section uses this)
+- White bg (#FFFFFF), 1px solid border (#D4D4D0), border-radius 4px
+- Dark header bar: bg #000000, h=48px, px=20px
+  - Title: white text, JetBrains Mono 14px 700, letter-spacing 1px, UPPERCASE
+  - Optional status badge: gold bg (#D4A843), black text, 10px 700
+- Content area: padding 20px, vertical layout, gap 16px
+
+### Screen 1: Terminal Alpha (Manufacturing)
+Main content has title + 3 columns (gap 20px):
+
+**Title section:**
+- "TERMINAL ALPHA" — JetBrains Mono 28px 700
+- "Manufacturing Interface" — 13px muted
+
+**Left column (280px):**
+1. Manufacture button: Panel with dark header "EXECUTE: MANUFACTURE CLIP", icon + text
+2. "MANUAL PRODUCTION YIELD: 1" small muted text
+3. Automation Panel: header "AUTOMATION", AutoClippers Active count, DEPLOY AUTOCLIPPER button (outline), cost text
+4. Market Strategy Panel: header "MARKET STRATEGY", price display, LOWER/RAISE buttons, demand bar, marketing level + UPGRADE button
+
+**Center column (flex-1):**
+1. Metrics Panel: header "LIVE METRICS LEDGER" + gold "SYNCED" badge
+   - Paperclips: large BigMetric component (28px bold)
+   - Available Funds: gold colored value
+   - Wire Inventory + Public Demand + Wire Cost as Metric rows
+   - BUY WIRE button (outline)
+
+**Right column (280px):**
+1. Activity Log: header "SYSTEM ACTIVITY LOG" + copy icon
+   - Scrollable list of LogEntry components
+   - Each entry: timestamp (muted 10px) + message (12px)
+   - Warning entries: gold-colored text
+
+### Button Primary (black bg, NOT gold)
+- Background: #000000 (black), text: white
+- JetBrains Mono 12px 700, letter-spacing 1px, UPPERCASE
+- Height: 48px, padding: 0 24px
+- Icon (optional, lucide) + label
+
+### Button Outline
+- Background: white, border: 1px solid $--border
+- JetBrains Mono 12px 700, letter-spacing 1px
+- Height: 40px, padding: 0 20px
+
+### Reusable Components
+
+| Component | React File | data-testid |
+|-----------|-----------|-------------|
+| Nav Sidebar | `NavSidebar.tsx` | `nav-sidebar` |
+| Panel (wrapper) | `Panel.tsx` | — |
+| Button Primary | `ButtonPrimary.tsx` | — |
+| Button Outline | `ButtonOutline.tsx` | — |
+| Status Badge | `StatusBadge.tsx` | — |
+| Metric Display | `MetricDisplay.tsx` | — |
+| Big Metric | `BigMetric.tsx` | — |
+| Activity Log | `ActivityLog.tsx` | `activity-log` |
 | Initiative Card | `InitiativeCard.tsx` | `initiative-card` |
 | Progress Bar | `ProgressBar.tsx` | `progress-bar` |
-| Activity Log + Log Entry | `ActivityLog.tsx` | `activity-log` |
-| Status Badge | `StatusBadge.tsx` | — (reusable) |
-| Stepper Control | `StepperControl.tsx` | — (reusable) |
-| Resource Bar | `ResourceBar.tsx` | — (reusable) |
-| Top Bar | `TopBar.tsx` | `page-header` |
-| Table Row | `TableRow.tsx` | — (reusable) |
+| Stepper Control | `StepperControl.tsx` | — |
 
-Open `design.pen` in Pencil.dev to see exact layout, spacing, colors, and component hierarchy. The design IS the spec for visual output.
+### Reference Image
+See `images/image.png` in the repo root — this is the Stitch screenshot showing the target look (Computational Resources screen with nav sidebar).
 
 ---
 
@@ -76,40 +163,44 @@ Open `design.pen` in Pencil.dev to see exact layout, spacing, colors, and compon
 
 ---
 
-## WY_THEME Reference -- Weyland Corporate Clinical
+## WY_THEME Reference (from Pencil design tokens)
 
-**Design direction:** Dystopian minimalist corporate brutalism. NOT dark CRT. NOT retro terminal.
+**CRITICAL: JetBrains Mono is the ONLY font. No Orbitron. No Inter. Everything is monospace.**
 
 ```
-Colors:
-  bg:          #FFFFFF    White page/panel background
-  panelBg:     #FFFFFF    Panel content area
-  headerBg:    #1A1A1A    Dark header bars on panels
-  text:        #000000    Primary text
-  textLight:   #FFFFFF    Text on dark backgrounds
-  accent:      #DAA520    Amber/gold CTAs, important data, active states
-  accentHover: #C8A200    Darker amber for hover
-  warning:     #CC0000    Red for alerts, danger, critical
-  muted:       #666666    Secondary/disabled text
-  border:      #000000    All structural borders
-  success:     #228B22    Positive indicators
+Colors (EXACT from design.pen):
+  --background:      #F5F5F0    Page bg (warm off-white, NOT pure white)
+  --foreground:      #1A1A1A    Primary text
+  --card:            #FFFFFF    Panel/card backgrounds
+  --border:          #D4D4D0    Panel borders (light gray, NOT black)
+  --muted-foreground:#7A7A75    Secondary/disabled text
+  --accent-gold:     #D4A843    Gold accent (badges, highlights)
+  --black:           #000000    Panel header bars
+  --white:           #FFFFFF    Text on dark backgrounds
+  --success:         #2D8A4E    Green status indicators
+  --warning:         #D4A843    Gold warnings
+  --error:           #CC3314    Red alerts
 
 Fonts:
-  mono:    'JetBrains Mono', monospace   -- code/data display
-  display: 'Orbitron', sans-serif        -- headers/titles
-  body:    'Inter', sans-serif           -- body text
+  EVERYTHING: 'JetBrains Mono', monospace — headers, body, data, buttons, labels
 
-Effects:
-  borderWidth:  1px       All borders
-  borderStyle:  solid     No dashed, no dotted
-  borderRadius: 2px       Minimal — sharp, corporate
+Sizes:
+  Title:    28px 700
+  Header:   14px 700, letter-spacing 1px, UPPERCASE
+  Body:     13px 400
+  Small:    10-11px, muted color
+  Button:   12px 700, letter-spacing 1px, UPPERCASE
+
+Border radius: 4px (panels), 2px (badges/buttons)
+Border: 1px solid #D4D4D0 (NOT black — light gray)
 ```
 
 **Visual rules:**
-- White backgrounds, black 1px structural borders everywhere
-- Dark (#1A1A1A) header bars on each panel
-- Amber (#DAA520) for buttons, active states, important numbers
-- JetBrains Mono for all numeric data
+- Page background is #F5F5F0 (warm off-white) NOT pure white
+- Panel borders are #D4D4D0 (light gray) NOT #000000 (black)
+- Panel header bars are #000000 (black) with white text
+- Gold accent is #D4A843 NOT #DAA520
+- JetBrains Mono EVERYWHERE — no other fonts
 - Orbitron for panel titles and headers
 - NO scanlines, NO CRT glow, NO green-on-black
 - Grid layout with visible structural lines
