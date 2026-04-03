@@ -96,27 +96,9 @@ const found = Array.from(testIds).map(el => el.getAttribute('data-testid'));
 **Missing any = L2 FAIL → route to UI team**
 
 ### L3 — Visual Rendering (does it look right?)
-Screenshot + computed styles:
+Take `mcp__claude-in-chrome__computer` screenshot and verify computed styles:
 ```js
-JSON.stringify({
-  bodyBg: getComputedStyle(document.body).backgroundColor,
-  // MUST be rgb(255, 255, 255)
-  headerBg: getComputedStyle(document.querySelector('[data-testid="page-header"]')).backgroundColor,
-  // MUST be rgb(26, 26, 26)
-  clipBtnBg: getComputedStyle(document.querySelector('[data-testid="clip-button"]')).backgroundColor,
-  // MUST be rgb(218, 165, 32) — amber
-  bodyFont: getComputedStyle(document.body).fontFamily,
-  // MUST include 'Inter'
-  dataFont: document.querySelector('.font-data') ?
-    getComputedStyle(document.querySelector('.font-data')).fontFamily : 'MISSING'
-  // MUST include 'JetBrains Mono'
-})
-```
-Also take `mcp__claude-in-chrome__computer` screenshot and score against rubric with vision.
-
-```js
-// POST-MORTEM FIX: Run 2 passed L3 with wrong layout because we only checked spot colors.
-// Now verify layout structure, correct background, correct borders, correct primary font.
+// Verify layout structure, correct background, correct borders, correct primary font.
 const sidebar = document.querySelector('[data-testid="nav-sidebar"]');
 const sidebarRect = sidebar ? sidebar.getBoundingClientRect() : null;
 const sidebarOk = sidebarRect && sidebarRect.width >= 200 && sidebarRect.width <= 320;
@@ -138,75 +120,129 @@ JSON.stringify({ sidebarOk, sidebarWidth: sidebarRect?.width, pageBgOk, pageBg, 
 // ALL must be true — any false = L3 FAIL → route to UI team
 ```
 
+**L3b — Phase-Aware Sidebar and Visual Phase Distinction (run after each phase transition):**
+```js
+// POST-MORTEM FIX: Run 4 sidebar was STATIC — same 4 items in all phases.
+// Sidebar MUST reflect the current phase: highlight active section, show phase-specific nav.
+
+// 1. Sidebar active item must match current phase
+const sidebar = document.querySelector('[data-testid="nav-sidebar"]');
+const activeItem = sidebar?.querySelector('.active, [aria-current], [data-active="true"]');
+const activeText = activeItem?.textContent || 'NONE';
+// Phase 1 → "Terminal Alpha" active
+// Phase 2 → "Earth Operations" or similar active  
+// Phase 3 → "Galactic Expansion" active
+
+// 2. Phase-specific visual cues — each phase should look DIFFERENT, not just stack more panels
+// Phase 2: should show P2 sections prominently (Drone Fleet, Factories, Power Grid)
+// Phase 3: should show P3 sections (Probe Launcher, Probe Config, Exploration, Combat)
+// P1-only panels (Market Strategy) should be de-emphasized or collapsed in later phases
+
+// 3. Verify panels are phase-gated (not all visible at once)
+const hasDrone = !!document.querySelector('[data-testid="drone-panel"]');
+const hasProbe = !!document.querySelector('[data-testid="probe-panel"]');
+// Phase 1: hasDrone=false, hasProbe=false
+// Phase 2: hasDrone=true, hasProbe=false
+// Phase 3: hasDrone=true, hasProbe=true
+
+JSON.stringify({ activeText, hasDrone, hasProbe })
+```
+**Static sidebar = L3b FAIL → route to UI team ("NavSidebar must be phase-aware")**
+
 **Wrong colors/fonts = L3 FAIL → route to UI team**
 
-### L4 — Full Gameplay Verification
+### L4 — Full Gameplay Verification (ALL PHASES)
 
-Run these checks using `mcp__claude-in-chrome__javascript_tool` and `mcp__claude-in-chrome__computer`:
+**CRITICAL: You must play through ALL 3 phases, not just Phase 1.** Use state injection to fast-forward when needed. Do NOT declare G3 passed based on component rendering alone — you must verify actual gameplay in each phase.
 
-#### Phase 1 Core Mechanics (G2 gate):
+#### State Injection Technique
+
+The game saves to localStorage key `wy-paperclips-save` using custom JSON serialization:
+- BigInt values: `{ __bigint: "12345" }`
+- Set values: `{ __set: ["id1", "id2"] }`
+
+To fast-forward for testing, read the current save, patch values, write back, and reload:
 ```js
-// 1. Click "Make Clip" → clip counter increments
-const before = document.querySelector('[data-testid="clip-counter"]').textContent;
-// → computer: click [data-testid="clip-button"]
-const after = document.querySelector('[data-testid="clip-counter"]').textContent;
-// after !== before → PASS
-
-// 2. Tick loop: wait 300ms, read clip counter again
-// Count should change without clicks → autoclippers OR tick running
-
-// 3. Wire purchase
-const wireBefore = document.querySelector('[data-testid="wire-panel"]').textContent;
-// → computer: click buy wire button
-const wireAfter = document.querySelector('[data-testid="wire-panel"]').textContent;
-// wireAfter !== wireBefore → PASS
-
-// 4. Autoclipper purchase
-// → computer: click deploy autoclipper button
-// → verify autoclipper count shows 1+
-
-// 5. Autoclipper production: wait 500ms
-// Clips should auto-increment without clicking → PASS
-
-// 6. Price/demand: change price
-// → verify demand value changes in response
-
-// 7. Project visibility
-document.querySelector('[data-testid="project-list"]').children.length > 0
-// At least 1 project visible → PASS
-
-// 8. Buy project
-// → click a project → verify it disappears from list
-
-// 9. Save/load round-trip
-// → javascript_tool: call engine save(), reload page, verify state preserved
+const raw = localStorage.getItem('wy-paperclips-save');
+const state = JSON.parse(raw);
+// Patch values for testing (e.g., boost ops/creativity for phase transitions)
+state.operations = 130000;
+state.maxOperations = 130000;
+state.creativity = 10000;
+state.flags.quantumUnlocked = true;
+state.flags.creativityUnlocked = true;
+localStorage.setItem('wy-paperclips-save', JSON.stringify(state));
+location.reload();
 ```
 
-#### Phase 2 (after G2):
+**Important:** Always read and patch the EXISTING save — don't create from scratch, because the save format must match the full GameState shape exactly or `loadGame()` will reject it.
+
+#### NOTE on setTimeout in javascript_tool
+
+`javascript_tool` does NOT support `await`. To read state after a click or delay:
+1. Use `setTimeout` to write results into `document.title`
+2. Then call `computer: wait` for the duration
+3. Read `document.title` from the tab context
+
+#### Phase 1 Playthrough (G2 gate):
 ```js
-// 10. Phase transition overlay appears
-// 11. Drone/factory panels have data-testid and render
-// 12. Phase 2 purchases increment counts
+// 1. MAKE_CLIP: click button, verify counter changes (use setTimeout pattern)
+// 2. TICK LOOP: buy an autoclipper first, then wait 500ms — clips auto-increment
+// 3. BUY_WIRE: click buy wire button, verify wire count changes
+// 4. BUY_AUTOCLIPPER: click deploy button, verify autoclipper count shows 1+
+// 5. AUTO-PRODUCTION: wait 500ms after buying autoclipper, clips go up without clicks
+// 6. PRICE/DEMAND: click LOWER button, verify price changes and demand responds
+// 7. PROJECTS VISIBLE: wait for ops to reach 750+, verify real projects appear (NOT mock)
+// 8. BUY PROJECT: click a project BUY button, verify it disappears from list
+// 9. SAVE/LOAD: wait 1.5s for auto-save, reload page, verify clips/funds persist
 ```
 
-#### Phase 3 (after G3 gate):
+#### Phase 2 Playthrough (G3 gate):
+
+After Phase 1 checks pass, inject state to reach Phase 2:
 ```js
-// 13. Probe panel renders with data-testid="probe-panel"
-// 14. Launch probe → probe count increments
-// 15. BigInt values display correctly in probe stats (not NaN)
+// 1. INJECT: Boost ops to 130000, creativity to 10000, set quantumUnlocked + creativityUnlocked
+// 2. TRIGGER TRANSITION: Find "Space Exploration" BUY button in project list, click it
+//    - Find it by scanning button parent text for "120.0K ops" or "Space Exploration"
+// 3. VERIFY TRANSITION: header changes to "EARTH OPERATIONS", data-testid="drone-panel" appears
+// 4. SCREENSHOT: capture Phase 2 layout — verify P2 panels visible
+// 5. BUY_HARVESTER: click Deploy Harvester, verify Harvester Drones count increments
+// 6. BUY_FACTORY: click Build Factory, verify Factories count increments
+// 7. BUY_SOLAR_FARM: click Build Solar Farm, verify Solar Farms count increments
+// 8. P2 PROJECTS: verify Phase 2 projects appear in project list
+// 9. TICK EFFECTS: wait 1s, verify factories/drones produce (clip count rising faster)
 ```
 
-**Failure routing:**
-- Checks 1-2, 5 fail → Core team ("tick loop / clip production broken")
-- Check 3 fail → Core team ("wire purchase dispatch broken")
-- Check 4 fail → Core team ("autoclipper dispatch broken")  
-- Check 6 fail → Core team ("price/demand formula broken")
-- Check 7-8 fail → Systems team ("project registry empty or purchase broken")
-- Check 9 fail → Core team ("save/load broken")
-- Checks 10-12 fail → Systems + UI teams
-- Checks 13-15 fail → Systems + UI teams
+#### Phase 3 Playthrough (G3 gate):
+
+After Phase 2 checks, inject more state for Phase 3:
+```js
+// 1. INJECT: Boost ops to 250000, creativity to 25000
+// 2. TRIGGER TRANSITION: Find "Release the Drones" BUY button (200.0K ops), click it
+// 3. VERIFY TRANSITION: header changes to "GALACTIC EXPANSION", data-testid="probe-panel" appears
+// 4. SCREENSHOT: capture Phase 3 layout — verify P3 panels visible
+// 5. LAUNCH_PROBE: click Launch Probe, verify probes count increments from 0 to 1
+// 6. PROBE CONFIG: verify probe-stats-panel renders with Speed/Exploration/Self-Replication/Combat
+// 7. BIGINT CHECK: run L5 scan — all .font-data elements must show no NaN/undefined/[object
+// 8. P3 PROJECTS: verify Phase 3 projects appear in project list
+// 9. PRESTIGE: if prestige project available, buy it — verify game resets but prestigeCount > 0
+```
+
+#### Failure Routing
+- Checks P1.1-2, P1.5 fail → Core team ("tick loop / clip production broken")
+- Check P1.3 fail → Core team ("wire purchase dispatch broken")
+- Check P1.4 fail → Core team ("autoclipper dispatch broken")
+- Check P1.6 fail → Core team ("price/demand formula broken")
+- Check P1.7-8 fail → Systems team ("project registry empty or purchase broken")
+- Check P1.9 fail → Core team ("save/load broken") + UI team ("engine.load() not called")
+- P2 transition fails → Core team ("phase transition logic in reducer") + Systems team ("space_exploration effect")
+- P2 panels missing → UI team ("phase-conditional rendering broken")
+- P2 purchases don't work → Core team ("P2 actions not in reducer") + UI team ("dispatch not wired")
+- P3 transition fails → Core + Systems team
+- P3 probes broken → Core team ("LAUNCH_PROBE action") + Systems team ("updateProbes")
+- BigInt NaN → Core team ("formatBigInt") + UI team ("display component")
+- Prestige broken → Core team ("PRESTIGE action in reducer")
 - Any missing data-testid → UI team
-- Visual mismatch with design.pen → UI team
 
 ### L5 — BigInt and Edge Cases
 ```js
@@ -260,13 +296,23 @@ Route failures via `SendMessage` to the responsible team lead AND write to `.swa
 - WY theme applied (Chrome L3, rubric score 3+)
 - Zero console errors
 
-### G3: Full Game
-- All G2 criteria still pass
-- Phase 2 transition works, panels render
-- Phase 3 transition works, panels render
-- BigInt displays correctly (Chrome L5)
-- 25+ projects across all phases
-- Prestige/reset works
+### G3: Full Game (MUST PLAY THROUGH ALL PHASES)
+- All G2 criteria still pass after merge
+- **Phase 2 playthrough verified via Chrome MCP:**
+  - Buy "Space Exploration" project → header becomes "EARTH OPERATIONS"
+  - drone-panel, factory-panel, power-panel data-testids appear
+  - Buy a harvester drone → count increments
+  - Buy a factory → count increments
+  - Phase 2 projects visible in project list
+- **Phase 3 playthrough verified via Chrome MCP:**
+  - Buy "Release the Drones" project → header becomes "GALACTIC EXPANSION"
+  - probe-panel, probe-stats-panel data-testids appear
+  - Launch a probe → probe count goes from 0 to 1
+  - Probe config panel shows Speed/Exploration/Self-Replication/Combat
+  - BigInt values display correctly (Chrome L5 — zero NaN)
+- **25+ projects** visible across all phases (use state injection to reach each phase)
+- **Prestige/reset** — buy prestige project, verify game resets with prestigeCount > 0
+- **DO NOT** declare G3 passed by only checking component existence — you must actually click buttons and verify state changes in Phase 2 and Phase 3
 
 ---
 
@@ -313,3 +359,38 @@ After reset: read your checkpoint FIRST, then this file, then continue the monit
 | UI | `src/components/`, `src/hooks/`, `src/styles/` |
 
 **`src/shared/` is FROZEN** — no team may modify it.
+
+---
+
+## Post-Mortem Learnings (Run 4)
+
+### 1. Engine Wiring is a Cross-Team Integration Task
+UI team builds components with `createMockState()` (static data). Core team builds the engine with `createEngine()`. **Neither team naturally creates the bridge.** The orchestrator MUST explicitly assign engine wiring early:
+- `useGameState` hook: `createEngine()` singleton → `useState` + `subscribe` → dispatch
+- App.tsx: replace `createMockState()` with `useGameState()` hook
+- **Assign this IMMEDIATELY after layout-theme completes**, don't wait for all components
+
+### 2. ProjectList Mock Data Trap
+UI components that have inline mock data (e.g., `MOCK_PROJECTS` in ProjectList.tsx) will appear to work in L2 checks but fail L4 gameplay. The orchestrator must verify that real data flows from state, not mock constants.
+
+### 3. Save/Load Requires Explicit Wiring
+The engine has `save()` and `load()` methods, but they're NOT called automatically. The `useGameState` hook must:
+- Call `engine.load()` before `engine.start()` on mount
+- Auto-save periodically (every 1s)
+- Save on unmount
+
+### 4. G3 Requires Actual Playthrough
+In run 4, G3 was tested by patching localStorage and checking if components render. Future runs MUST actually play through each phase: buy projects, verify state changes, test phase-specific mechanics (drones, factories, probes). Component existence ≠ gameplay verification.
+
+### 5. setTimeout Pattern for Chrome MCP
+`javascript_tool` doesn't support `await`. To verify state after an action:
+1. Click button / dispatch action
+2. `setTimeout(() => { document.title = JSON.stringify(result) }, 500)`
+3. `computer: wait 1s`
+4. Read result from tab title
+
+### 6. Sidebar Must Be Phase-Aware
+Run 4's NavSidebar was static — showed the same 4 items in all 3 phases with no visual indication of which phase is active. The orchestrator must verify (L3b) that the sidebar highlights the current phase and that each phase looks visually distinct, not just more panels stacked below.
+
+### 7. Phases Must Look Visually Different
+Run 4 stacked Phase 2/3 panels below Phase 1 panels, creating a long scroll page. Each phase should reorganize the layout so new-phase panels are prominent, not buried. The UI team prompt now requires phase-specific layout shifts.

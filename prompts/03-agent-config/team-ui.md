@@ -134,9 +134,21 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Gold accent: #D4A843 (NOT #DAA520)
    - Muted text: #7A7A75
 
-4. **NavSidebar is MANDATORY** — Chrome L2 checks for data-testid="nav-sidebar". Missing = FAIL.
+4. **NavSidebar is MANDATORY and PHASE-AWARE** — Chrome L2 checks for data-testid="nav-sidebar". Missing = FAIL.
+   - NavSidebar receives `state.phase` as a prop
+   - The active nav item MUST highlight based on current phase (gold left border or bold text)
+   - Phase 1: "Terminal Alpha" is active
+   - Phase 2: "Earth Operations" is active (replaces or highlights differently)
+   - Phase 3: "Galactic Expansion" is active
+   - Use `data-active="true"` or `.active` class on the current phase item
 
-5. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
+5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below:
+   - Phase 1: Left column shows P1 panels (Automation, Market Strategy). Right column shows Metrics, Trust, Investment.
+   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid) should be **prominent** — consider reorganizing the grid or using a tabbed/sectioned layout so P2 content is front-and-center, not buried below P1 panels.
+   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) should dominate the view. P1 panels like Market Strategy can be collapsed or moved to a secondary section.
+   - The page title already changes (TERMINAL ALPHA → EARTH OPERATIONS → GALACTIC EXPANSION) — the layout should reinforce this shift.
+
+6. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
 
 Reference image: `images/image.png` in repo root shows the target design with sidebar.
 
