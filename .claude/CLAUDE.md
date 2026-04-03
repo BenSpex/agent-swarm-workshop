@@ -153,36 +153,19 @@ JSON.stringify({ activeText, hasDrone, hasProbe })
 
 ### L4 — Full Gameplay Verification (ALL PHASES)
 
-**CRITICAL: You must play through ALL 3 phases, not just Phase 1.** Use state injection to fast-forward when needed. Do NOT declare G3 passed based on component rendering alone — you must verify actual gameplay in each phase.
+**CRITICAL: Play through ALL 3 phases, not just Phase 1.** Use state injection to fast-forward. Do NOT declare G3 passed on component rendering alone — verify actual gameplay in each phase.
 
 #### State Injection Technique
-
-The game saves to localStorage key `wy-paperclips-save` using custom JSON serialization:
-- BigInt values: `{ __bigint: "12345" }`
-- Set values: `{ __set: ["id1", "id2"] }`
-
-To fast-forward for testing, read the current save, patch values, write back, and reload:
+Read existing save, patch values, write back, reload. Don't create from scratch (must match full GameState shape).
 ```js
-const raw = localStorage.getItem('wy-paperclips-save');
-const state = JSON.parse(raw);
-// Patch values for testing (e.g., boost ops/creativity for phase transitions)
-state.operations = 130000;
-state.maxOperations = 130000;
-state.creativity = 10000;
-state.flags.quantumUnlocked = true;
-state.flags.creativityUnlocked = true;
+const state = JSON.parse(localStorage.getItem('wy-paperclips-save'));
+state.operations = 130000; state.creativity = 10000; // etc.
 localStorage.setItem('wy-paperclips-save', JSON.stringify(state));
 location.reload();
 ```
 
-**Important:** Always read and patch the EXISTING save — don't create from scratch, because the save format must match the full GameState shape exactly or `loadGame()` will reject it.
-
-#### NOTE on setTimeout in javascript_tool
-
-`javascript_tool` does NOT support `await`. To read state after a click or delay:
-1. Use `setTimeout` to write results into `document.title`
-2. Then call `computer: wait` for the duration
-3. Read `document.title` from the tab context
+#### NOTE: javascript_tool doesn't support `await`
+Use `setTimeout` to write results into `document.title`, then `computer: wait`, then read title.
 
 #### Phase 1 Playthrough (G2 gate):
 ```js
@@ -221,11 +204,20 @@ After Phase 2 checks, inject more state for Phase 3:
 // 2. TRIGGER TRANSITION: Find "Release the Drones" BUY button (200.0K ops), click it
 // 3. VERIFY TRANSITION: header changes to "GALACTIC EXPANSION", data-testid="probe-panel" appears
 // 4. SCREENSHOT: capture Phase 3 layout — verify P3 panels visible
-// 5. LAUNCH_PROBE: click Launch Probe, verify probes count increments from 0 to 1
-// 6. PROBE CONFIG: verify probe-stats-panel renders with Speed/Exploration/Self-Replication/Combat
-// 7. BIGINT CHECK: run L5 scan — all .font-data elements must show no NaN/undefined/[object
-// 8. P3 PROJECTS: verify Phase 3 projects appear in project list
-// 9. PRESTIGE: if prestige project available, buy it — verify game resets but prestigeCount > 0
+// 5. LAUNCH_PROBE COST: click Launch Probe — verify it COSTS resources (not free). Check funds/ops before and after.
+// 6. PROBE CONFIG: verify probe-stats-panel renders with 5 stats: Speed, Exploration, Self-Replication, Combat, Hazard Remediation
+// 7. PROBE TRUST ALLOCATION: 
+//    - Read "Available Trust" value
+//    - Click "+" on a stat — verify Available Trust decreases by 1 and stat increases by 1
+//    - Click "-" on a stat — verify Available Trust increases by 1 and stat decreases by 1
+//    - If Available Trust = 0, clicking "+" must NOT change any stat (trust is a hard limit)
+// 8. PROBE MECHANICS: Wait 5-10 seconds with probes launched, then verify:
+//    - exploredSectors is increasing (probes * exploration * speed per tick)
+//    - If drifters appear (drifterCount > 0), combat triggers and honor can be earned
+//    - probeSpeed is NOT dead code — it must affect exploration rate
+// 9. BIGINT CHECK: run L5 scan — all .font-data elements must show no NaN/undefined/[object
+// 10. P3 PROJECTS: verify Phase 3 projects appear, including one that grants probeTrust
+// 11. PRESTIGE: if prestige project available, buy it — verify game resets but prestigeCount > 0
 ```
 
 #### Failure Routing
@@ -394,3 +386,6 @@ Run 4's NavSidebar was static — showed the same 4 items in all 3 phases with n
 
 ### 7. Phases Must Look Visually Different
 Run 4 stacked Phase 2/3 panels below Phase 1 panels, creating a long scroll page. Each phase should reorganize the layout so new-phase panels are prominent, not buried. The UI team prompt now requires phase-specific layout shifts.
+
+### 8. Probe Mechanics Were Wrong
+Run 4's ADJUST_PROBE was free (no trust consumed), LAUNCH_PROBE was free (no cost), probeSpeed was dead code (never used), Hazard Remediation stat was missing entirely, and combat was a simple threshold not probabilistic. The systems and core prompts now specify exact probe mechanics matching the original game. L4 Phase 3 checks now verify trust consumption, probe costs, and all 5 stats.

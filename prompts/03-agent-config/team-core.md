@@ -75,6 +75,16 @@ Follow the minute targets from the spec:
 
 Teammates can start in parallel (engine and formulas are independent). Persistence depends on engine being done.
 
+## Probe Action Rules (CRITICAL for Phase 3)
+
+The reducer MUST implement these probe actions correctly:
+
+1. **LAUNCH_PROBE**: Must cost resources (e.g., deduct funds or operations). Do NOT give probes for free. Return state unchanged if player can't afford it.
+
+2. **ADJUST_PROBE**: Must consume `probeTrust` when incrementing a stat (+1 stat costs 1 probeTrust). Must return `probeTrust` when decrementing (-1 stat returns 1 probeTrust). Reject increment if `probeTrust <= 0`. Reject decrement if stat is already at minimum (1).
+
+3. **Probe stats**: There are 5 stats: `probeSpeed`, `probeExploration`, `probeSelfReplication`, `probeCombat`, `probeHazardRemediation`. All start at 1.
+
 ## Coordination Rules
 
 - Read the full spec before assigning any work: `prompts/02-architecture/spec-core.md`
