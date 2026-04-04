@@ -63,23 +63,21 @@ export interface GameFlags {
   fullAutoClippersActive: boolean;
   /** Space Travel unlocked — triggers Phase 2 transition */
   spaceTravelUnlocked: boolean;
+  strategicModelingUnlocked: boolean;
+  autoTourneyEnabled: boolean;
+  swarmSyncActive: boolean;
+  matterHarvestingActive: boolean;
+  /** RevTracker project — unlocks Avg Rev/sec, Clips Sold/sec, Unsold Inventory display */
+  revTrackerEnabled: boolean;
 }
 
-/**
- * Investment portfolio sub-state.
- * Null when investment hasn't been unlocked yet.
- */
+/** Investment portfolio sub-state. Null when not yet unlocked. */
 export interface InvestmentState {
-  /** Number of stock units held */
   stocks: number;
-  /** Number of bond units held */
   bonds: number;
-  /** Total portfolio value in dollars */
   totalPortfolio: number;
-  /** Risk level 1-10 (higher = more volatile, higher returns) */
-  riskLevel: number;
-  /** Current return rate (recalculated each tick) */
-  returnRate: number;
+  riskLevel: number;       // 1-10 (higher = more volatile, higher returns)
+  returnRate: number;      // recalculated each tick
 }
 
 /**
@@ -143,6 +141,16 @@ export interface GameState {
   /** Operations generated per tick (processors * base rate) */
   opsGenerationRate: number;
 
+  // --- Derived display metrics ---
+  clipsPerSecond: number;
+  revenuePerSecond: number;
+  clipsSoldPerSecond: number;
+  // --- Wire buyer ---
+  wireBuyerEnabled: boolean;
+  // --- Strategic Modeling / Yomi ---
+  yomi: number;
+  stratModelRound: number;
+
   // --- Investment ---
   /** Portfolio state, or null if not yet unlocked */
   investment: InvestmentState | null;
@@ -162,6 +170,10 @@ export interface GameState {
   storedPower: number;
   /** Swarm computing momentum */
   momentum: number;
+  matter: number;
+  acquiredMatter: number;
+  swarmSyncLevel: number;
+  swarmGiftTimer: number;
 
   // --- Phase 3: Universe ---
   /** Self-replicating probes launched (bigint) */
@@ -176,12 +188,18 @@ export interface GameState {
   probeSelfReplication: number;
   /** Probe combat stat */
   probeCombat: number;
+  probeHazardRemediation: number;
+  probeFactoryProd: number;
+  probeHarvesterProd: number;
+  probeWireDroneProd: number;
   /** Honor earned from drifter encounters */
   honor: number;
   /** Universe sectors explored (bigint) */
   exploredSectors: bigint;
   /** Drifter entities encountered (bigint) */
   drifterCount: bigint;
+  probeDescendants: bigint;
+  probeLosses: bigint;
 
   // --- Prestige ---
   /** Number of prestige resets completed */
@@ -201,7 +219,9 @@ export interface GameState {
 // ============================================================
 
 /** Probe stat keys for the ADJUST_PROBE action */
-export type ProbeStat = 'speed' | 'exploration' | 'selfReplication' | 'combat';
+export type ProbeStat =
+  | 'speed' | 'exploration' | 'selfReplication' | 'combat'
+  | 'hazardRemediation' | 'factoryProd' | 'harvesterProd' | 'wireDroneProd';
 
 /**
  * Every possible action. The engine's reducer switches on `type`.
@@ -220,14 +240,21 @@ export type GameAction =
   | { type: 'BUY_PROJECT'; projectId: string }
   | { type: 'INVEST'; amount: number }
   | { type: 'SET_RISK'; level: number }
-  | { type: 'BUY_HARVESTER' }
-  | { type: 'BUY_WIRE_DRONE' }
-  | { type: 'BUY_FACTORY' }
-  | { type: 'BUY_SOLAR_FARM' }
-  | { type: 'BUY_BATTERY' }
+  | { type: 'BUY_HARVESTER'; count?: number }
+  | { type: 'BUY_WIRE_DRONE'; count?: number }
+  | { type: 'BUY_FACTORY'; count?: number }
+  | { type: 'BUY_SOLAR_FARM'; count?: number }
+  | { type: 'BUY_BATTERY'; count?: number }
   | { type: 'LAUNCH_PROBE' }
   | { type: 'ADJUST_PROBE'; stat: ProbeStat; delta: number }
   | { type: 'TICK' }
+  | { type: 'TOGGLE_WIRE_BUYER' }
+  | { type: 'DEPOSIT'; amount: number; tier: 'low' | 'med' | 'high' }
+  | { type: 'WITHDRAW'; amount: number; tier: 'low' | 'med' | 'high' }
+  | { type: 'STRAT_PICK'; choice: 'A' | 'B' | 'RANDOM' }
+  | { type: 'STRAT_NEW_TOURNAMENT' }
+  | { type: 'COMPUTE' }
+  | { type: 'DISASSEMBLE'; target: string; count: number }
   | { type: 'PRESTIGE' }
   | { type: 'LOAD_SAVE'; state: GameState }
   | { type: 'RESET' };
@@ -256,6 +283,8 @@ export interface ProjectCost {
   creativity?: number;
   funds?: number;
   trust?: number;
+  yomi?: number;
+  honor?: number;
 }
 
 /**

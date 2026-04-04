@@ -98,10 +98,10 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 
 **layout-theme must know:**
 - Import WY_THEME from `src/shared/theme.ts` and map to Tailwind config
-- Import fonts in `index.html`: JetBrains Mono, Orbitron, Inter from Google Fonts CDN
-- App.tsx uses CSS Grid: 3 columns for Phase 1, adapts for Phase 2/3
-- Panel.tsx: dark #1A1A1A header bar, white #FFFFFF body, 1px solid black border, 2px border-radius
-- global.css: base styles, box-sizing, font-family defaults, structural grid lines
+- Import fonts in `index.html`: JetBrains Mono from Google Fonts CDN (ONLY JetBrains Mono, no Orbitron, no Inter)
+- App.tsx uses `display:flex` with 260px sidebar + main content (flex-1). Main content is a single-column stacked layout (panels stack vertically). NOT a 3-column grid.
+- Panel.tsx: dark #000000 header bar, white #FFFFFF body, 1px solid #D4D4D0 border, 4px border-radius
+- global.css: base styles, box-sizing, font-family defaults (JetBrains Mono everywhere)
 
 **components-p1 must know:**
 - Use `createMockState()` from `src/shared/mockState.ts` during development
@@ -109,12 +109,17 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 - Use `formatBigInt()` for clip counts, `formatNumber()` for other numbers, `formatMoney()` for dollar amounts
 - Dispatch actions via a dispatch function prop (will be wired after integration)
 - JetBrains Mono for all numeric data display
-- Amber (#DAA520) for buy buttons and CTAs
+- Gold accent (#D4A843) for buy buttons and CTAs (NOT #DAA520)
+- New components: ManufacturingPanel, BusinessPanel, ManufacturingControls, ComputingPanel, StratModelingPanel
+- Display: clips/sec, unsold inventory, revenue/sec, wire buyer toggle, yomi
 
 **components-p2p3 must know:**
 - Same patterns as Phase 1 components
 - Phase 2/3 components can be stub panels if time is tight (correct layout, placeholder data)
 - Use bigint formatting for clip factories, probes, explored sectors
+- Phase 2 adds: DronePanel (bulk buy), FactoryPanel, PowerPanel, MatterPanel
+- Phase 3 adds: ProbePanel (shows cost), ProbeStatsPanel (8 stats not 4), ExplorationDisplay (probeDescendants), CombatDisplay (probeLosses)
+- Bulk buy: BUY_HARVESTER etc accept optional `count` field
 
 **message-log must know:**
 - MessageLog: scrolling feed, newest message at top, auto-scroll on new messages
@@ -125,11 +130,11 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 
 1. **FONT: JetBrains Mono is the ONLY font.** Do NOT use Orbitron or Inter anywhere. If you see them in theme.ts, IGNORE them. Every element uses JetBrains Mono.
 
-2. **LAYOUT: Sidebar + Main.** Every screen has a 260px NavSidebar on the left. App.tsx is `display:flex` with sidebar (260px fixed) + main content (flex-1). NOT a header-only layout.
+2. **LAYOUT: Sidebar + Stacked Panels.** Every screen has a 260px NavSidebar on the left. App.tsx is `display:flex` with sidebar (260px fixed) + main content (flex-1). Main content uses a **single-column stacked layout** — panels stack vertically from top to bottom, NOT a 3-column grid. This matches the original Universal Paperclips layout.
 
 3. **COLORS from Pencil (override theme.ts if different):**
    - Page bg: #F5F5F0 (warm off-white, NOT pure white #FFFFFF)
-   - Panel borders: #D4D4D0 (light gray, NOT black #000000)  
+   - Panel borders: #D4D4D0 (light gray, NOT black #000000)
    - Panel headers: #000000 (black) with white text
    - Gold accent: #D4A843 (NOT #DAA520)
    - Muted text: #7A7A75
@@ -143,12 +148,38 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Use `data-active="true"` or `.active` class on the current phase item
 
 5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below:
-   - Phase 1: Left column shows P1 panels (Automation, Market Strategy). Right column shows Metrics, Trust, Investment.
-   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid) should be **prominent** — consider reorganizing the grid or using a tabbed/sectioned layout so P2 content is front-and-center, not buried below P1 panels.
-   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) should dominate the view. P1 panels like Market Strategy can be collapsed or moved to a secondary section.
-   - The page title already changes (TERMINAL ALPHA → EARTH OPERATIONS → GALACTIC EXPANSION) — the layout should reinforce this shift.
+   - Phase 1: Stacked panels — Manufacturing, Business (pricing/marketing/wire buyer), Computing (ops/memory/creativity), Strategic Modeling, Projects, Activity Log.
+   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid, Matter) appear prominently. P1 panels collapse or move to secondary section.
+   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) dominate. Earlier panels collapse.
+   - The page title changes (TERMINAL ALPHA -> EARTH OPERATIONS -> GALACTIC EXPANSION) — layout reinforces the shift.
 
-6. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
+6. **Component data-testids (all required):**
+   - `manufacturing-panel` — clip button + clips/sec display + unsold inventory
+   - `business-panel` — pricing, demand, marketing, wire, wire buyer toggle
+   - `manufacturing-controls` — autoclipper/megaclipper buy section
+   - `computing-panel` — processors, memory, ops, creativity, COMPUTE button
+   - `strat-modeling-panel` — yomi display, A/B/Random pick buttons, tournament round
+   - `investment-panel` — deposit/withdraw tiers, portfolio value
+   - `project-list` — available projects with buy buttons
+   - `activity-log` — scrolling message feed
+   - `drone-panel` — harvester/wire drone counts and buy (Phase 2)
+   - `factory-panel` — clip factories (Phase 2)
+   - `power-panel` — solar farms, batteries, stored power (Phase 2)
+   - `matter-panel` — matter/acquired matter display (Phase 2)
+   - `probe-panel` — probe count, launch button (Phase 3)
+   - `probe-stats-panel` — 8-stat trust allocation (Phase 3)
+   - `exploration-display` — sectors explored, drifter count (Phase 3)
+   - `combat-display` — honor, combat results (Phase 3)
+   - `nav-sidebar` — navigation sidebar
+
+7. **Key Metrics to Display:**
+   - Clips per second (`clipsPerSecond` from state)
+   - Unsold inventory (`unsoldClips` from state)
+   - Revenue per second (`revenuePerSecond` from state)
+   - Wire buyer toggle (shows ON/OFF, dispatches TOGGLE_WIRE_BUYER)
+   - Yomi count (from `state.yomi`)
+
+8. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
 
 Reference image: `images/image.png` in repo root shows the target design with sidebar.
 
@@ -156,13 +187,13 @@ Reference image: `images/image.png` in repo root shows the target design with si
 
 After every merge, the orchestrator runs Chrome MCP against the live dev server. Failures route directly back to you. Know exactly what it checks:
 
-**L2 — data-testid must exist:** `app`, `page-header`, `clip-button`, `metrics-ledger`, `clip-counter`, `funds-display`, `wire-panel`, `price-display`, `activity-log`, `autoclipper-panel`, `project-list`. Missing any = FAIL.
+**L2 — data-testid must exist:** `app`, `page-header`, `nav-sidebar`, `manufacturing-panel`, `business-panel`, `manufacturing-controls`, `computing-panel`, `strat-modeling-panel`, `clip-counter`, `funds-display`, `activity-log`, `project-list`. Phase 2 adds: `drone-panel`, `factory-panel`, `power-panel`, `matter-panel`. Phase 3 adds: `probe-panel`, `probe-stats-panel`, `exploration-display`, `combat-display`. Missing any = FAIL.
 
 **L3 — Theme colors verified via `getComputedStyle()`:**
-- Body bg = `rgb(255, 255, 255)` (white)
-- Header bg = `rgb(26, 26, 26)` (near-black)
-- CTA button bg = `rgb(218, 165, 32)` (amber #DAA520)
-- Body font = Inter, data font = JetBrains Mono, header font = Orbitron
+- Body bg = `rgb(245, 245, 240)` (#F5F5F0 warm off-white, NOT pure white)
+- Header bg = `rgb(0, 0, 0)` (black)
+- Borders = `rgb(212, 212, 208)` (#D4D4D0 light gray, NOT black)
+- Body font = JetBrains Mono (EVERYWHERE, no Orbitron, no Inter)
 
 **L4 — Click test:** Orchestrator clicks `[data-testid="clip-button"]` via `mcp__claude-in-chrome__computer`, then reads `[data-testid="clip-counter"]` text. Count must increment.
 

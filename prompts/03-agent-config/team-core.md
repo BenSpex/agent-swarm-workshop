@@ -75,6 +75,48 @@ Follow the minute targets from the spec:
 
 Teammates can start in parallel (engine and formulas are independent). Persistence depends on engine being done.
 
+## New Mechanics (Run 7)
+
+### Derived Display Metrics
+Every tick, the engine MUST compute rolling averages and store them in state:
+- `clipsPerSecond`: clips produced in the last second (10 ticks). Track a rolling window of clip deltas.
+- `revenuePerSecond`: funds earned in the last second (from clip sales).
+- `clipsSoldPerSecond`: clips sold in the last second.
+These are stored as `number` on GameState and updated every TICK.
+
+### Wire Buyer Automation
+- `TOGGLE_WIRE_BUYER` action: flips `state.wireBuyerEnabled` boolean.
+- When `wireBuyerEnabled === true`, the tick reducer auto-buys wire when `wire < 10` and `funds >= wirePrice`. Deduct `wirePrice` from `funds`, add wire spool (default 1000 wire per spool).
+- Requires `flags.wireBuyerUnlocked` to be true (set by "Optimized Wire Buying" project).
+
+### Strategic Modeling Mini-Game
+- `STRAT_PICK` action: player picks 'A', 'B', or 'RANDOM'. Opponent picks randomly. Resolve using a 2x2 payoff matrix:
+  - (A,A) = +3 yomi, (A,B) = -1 yomi, (B,A) = +0 yomi, (B,B) = +1 yomi
+  - RANDOM: engine picks A or B with 50/50 for the player.
+- `STRAT_NEW_TOURNAMENT` action: starts a new round of the tournament (increments `stratModelRound`).
+- When `flags.autoTourneyEnabled`, the tick reducer auto-plays a round every 50 ticks.
+- Requires `flags.strategicModelingUnlocked` to be true.
+
+### Quantum Computing COMPUTE Action
+- `COMPUTE` action: converts 10 operations into 1 creativity.
+- Guard: requires `flags.quantumUnlocked === true` and `operations >= 10`.
+- Deduct 10 from `operations`, add 1 to `creativity`.
+
+### Investment DEPOSIT/WITHDRAW
+- `DEPOSIT` action: move `amount` from `funds` to the investment portfolio tier ('low', 'med', 'high').
+- `WITHDRAW` action: move `amount` from investment tier back to `funds`.
+- Guards: sufficient funds/portfolio balance.
+
+### Bulk Purchases
+- `BUY_HARVESTER`, `BUY_WIRE_DRONE`, `BUY_FACTORY`, `BUY_SOLAR_FARM`, `BUY_BATTERY` now accept optional `count` field.
+- When `count` is provided, buy that many units in a single dispatch (multiply cost, add count units).
+- Default `count = 1` if omitted.
+
+### DISASSEMBLE Action
+- `DISASSEMBLE` action: destroys `count` units of `target` (e.g., 'harvester', 'wireDrone', 'factory', 'solarFarm', 'battery').
+- Recovers partial resources (e.g., 50% of build cost returned as matter or stored power).
+- Guard: must have enough of the target to disassemble.
+
 ## Probe Action Rules (CRITICAL for Phase 3)
 
 The reducer MUST implement these probe actions correctly:
@@ -83,7 +125,9 @@ The reducer MUST implement these probe actions correctly:
 
 2. **ADJUST_PROBE**: Must consume `probeTrust` when incrementing a stat (+1 stat costs 1 probeTrust). Must return `probeTrust` when decrementing (-1 stat returns 1 probeTrust). Reject increment if `probeTrust <= 0`. Reject decrement if stat is already at minimum (1).
 
-3. **Probe stats**: There are 5 stats: `probeSpeed`, `probeExploration`, `probeSelfReplication`, `probeCombat`, `probeHazardRemediation`. All start at 1.
+3. **Probe stats**: There are **8 stats** (not 4 or 5): `probeSpeed`, `probeExploration`, `probeSelfReplication`, `probeCombat`, `probeHazardRemediation`, `probeFactoryProd`, `probeHarvesterProd`, `probeWireDroneProd`. All start at 1. The production stats (factoryProd, harvesterProd, wireDroneProd) allow probes to generate resources in Phase 3.
+
+4. **probeDescendants** (bigint): tracks total probes ever created through self-replication. **probeLosses** (bigint): tracks total probes lost in combat.
 
 ## Coordination Rules
 

@@ -24,6 +24,10 @@ Files you will create/edit:
 - `src/systems/quantum.ts` -- Creativity generation logic
 - `src/systems/trust.ts` -- Trust allocation (processors/memory)
 - `src/systems/probes.ts` -- Probe launch/explore/replicate/combat
+- `src/systems/stratModeling.ts` -- Strategic modeling tournament engine
+- `src/systems/wireBuyer.ts` -- Auto wire purchasing logic
+- `src/systems/swarm.ts` -- Swarm computing with gifts
+- `src/systems/matter.ts` -- Matter harvesting subsystem
 
 ---
 
@@ -84,7 +88,8 @@ Build project registry + Phase 1 projects:
 - `getPurchasedProjects(state: GameState): ProjectDefinition[]`
 
 **`src/systems/projects/phase1.ts`** -- First 10+ Phase 1 projects:
-- AutoClippers (cost: 750 ops) -- unlocks autoClippersUnlocked flag
+- RevTracker (cost: 500 ops) -- unlocks revTrackerEnabled flag (reveals Avg Rev/sec, Clips Sold/sec, Unsold Inventory)
+- AutoClippers (cost: 750 ops) -- unlocks autoClippersUnlocked flag (reveals Clips per Second display)
 - Improved AutoClippers (cost: 2500 ops) -- doubles clipper output
 - Even Better AutoClippers (cost: 5000 ops) -- doubles again
 - MegaClippers (cost: 12000 ops) -- unlocks megaClippersUnlocked flag
@@ -138,10 +143,76 @@ Build project registry + Phase 1 projects:
 
 **`src/systems/probes.ts`:**
 - `updateProbes(state: GameState): GameState` -- tick updater for Phase 3
-- Probe exploration: probes * probeExploration rate -> exploredSectors
-- Probe replication: probes * probeSelfReplication rate -> new probes
+- Probe exploration: probes * probeExploration * probeSpeed -> exploredSectors
+- Probe replication: probes * probeSelfReplication rate -> new probes (track in probeDescendants)
+- Probe production: factoryProd/harvesterProd/wireDroneProd generate resources
 - Drifter encounters: random based on exploredSectors
-- Combat resolution: probeCombat vs drifter strength -> honor
+- Combat resolution: probeCombat vs drifter strength -> honor (track losses in probeLosses)
+- 8 stats total: speed, exploration, selfReplication, combat, hazardRemediation, factoryProd, harvesterProd, wireDroneProd
+
+**`src/systems/stratModeling.ts`:**
+- `updateStratModeling(state: GameState): GameState` -- tick updater
+- Tournament engine with 2x2 payoff matrix: (A,A)=+3, (A,B)=-1, (B,A)=+0, (B,B)=+1
+- `resolveRound(state, choice: 'A'|'B'|'RANDOM')` -- resolve a single round, update yomi
+- Auto-tournament: when `flags.autoTourneyEnabled`, auto-play every 50 ticks using random choice
+- Track `stratModelRound` (increments each round)
+
+**`src/systems/wireBuyer.ts`:**
+- `updateWireBuyer(state: GameState): GameState` -- tick updater
+- When `wireBuyerEnabled && wire < 10 && funds >= wirePrice`: buy 1 spool (1000 wire), deduct wirePrice
+- Requires `flags.wireBuyerUnlocked` to be true
+
+**`src/systems/swarm.ts`:**
+- `updateSwarm(state: GameState): GameState` -- tick updater for Phase 2+
+- When `flags.swarmSyncActive`: generate swarm gifts based on `momentum` and `swarmSyncLevel`
+- Gifts: bonus operations or creativity, applied every N ticks (configurable)
+- `swarmGiftTimer` counts down; when 0, deliver gift and reset timer
+
+**`src/systems/matter.ts`:**
+- `updateMatter(state: GameState): GameState` -- tick updater for Phase 2+
+- When `flags.matterHarvestingActive`: harvesters generate `matter` each tick
+- Wire drones convert `matter` into wire
+- Factories convert `matter` + wire into clips
+- `acquiredMatter` tracks lifetime total matter harvested
+
+### Expanded Project List (aim for 45+)
+
+**Phase 1 projects (~20):** (existing list plus)
+- AutoTourney (cost: 15000 ops) -- enables `autoTourneyEnabled` flag
+- WireBuyer (cost: 3000 ops) -- unlocks `wireBuyerUnlocked` flag (if not already in list)
+- Strategic Modeling (cost: 12000 ops) -- unlocks `strategicModelingUnlocked` flag
+
+**Phase 2 projects (~15):**
+- Solar Farm Efficiency (cost: 5000 ops)
+- Harvester Throughput (cost: 8000 ops)
+- Factory Optimization (cost: 10000 ops)
+- Momentum Computing (cost: 15000 ops)
+- Swarm Coordination (cost: 20000 ops) -- activates `swarmSyncActive`
+- Swarm Sync Upgrade (cost: 30000 ops) -- increases `swarmSyncLevel`
+- Matter Harvesting (cost: 25000 ops) -- activates `matterHarvestingActive`
+- Advanced Matter Processing (cost: 40000 ops)
+- Drone Fleet Expansion (cost: 15000 ops)
+- Battery Optimization (cost: 10000 ops)
+- Power Grid Upgrade (cost: 20000 ops)
+- Wire Drone Efficiency (cost: 12000 ops)
+- Release the Drones (cost: 200000 ops) -- triggers Phase 3 transition
+
+**Phase 3 projects (~15):**
+- Coherent Extrapolated Volition (cost: 50000 ops) -- grants +10 probeTrust
+- Probe Launch Improvements (cost: 30000 ops)
+- Combat Strategy (cost: 25000 creativity)
+- Exploration Efficiency (cost: 40000 ops)
+- Honor rewards projects (cost: various honor amounts)
+- Increase Max Trust (cost: 500 honor) -- grants +5 probeTrust
+- Probe Factory Production (cost: 50000 ops) -- boosts probeFactoryProd
+- Probe Harvester Production (cost: 50000 ops) -- boosts probeHarvesterProd
+- Probe Wire Drone Production (cost: 50000 ops) -- boosts probeWireDroneProd
+- Self-Replication Boost (cost: 75000 ops)
+- Hazard Remediation Upgrade (cost: 30000 creativity)
+- Drifter Diplomacy (cost: 1000 honor) -- reduces drifter aggression
+- Universal Paperclips (cost: 100000 ops + 10000 creativity) -- prestige/endgame trigger
+- Name the Probe (cost: 100 yomi) -- cosmetic + small speed boost
+- The OODA Loop (cost: 2000 yomi) -- combat bonus from yomi
 
 ---
 

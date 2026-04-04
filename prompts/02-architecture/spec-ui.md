@@ -51,22 +51,24 @@ CRITICAL: The font is JetBrains Mono everywhere — headers, labels, data, butto
 ### App Shell Layout (ALL screens share this)
 ```
 ┌──────────────────────────────────────────────────┐
-│ 260px SIDEBAR  │  MAIN CONTENT (flex-1)          │
+│ 260px SIDEBAR  │  MAIN CONTENT (flex-1, stacked) │
 │                │                                  │
 │ WEYLAND CORP   │  TERMINAL ALPHA                  │
 │ AI INIT:       │  Manufacturing Interface          │
 │ MU-TH-UR 6000 │                                  │
-│                │  ┌─────┬──────────┬─────┐       │
-│ ▸ Terminal     │  │LEFT │ CENTER   │RIGHT│       │
-│   Alpha        │  │280px│ flex-1   │280px│       │
-│ ▸ Computational│  │     │          │     │       │
-│ ▸ Strategic    │  │     │          │     │       │
-│ ▸ Galactic     │  └─────┴──────────┴─────┘       │
-│                │                                  │
-│ ● SYS.STATUS  │                                  │
-│   NOMINAL      │                                  │
+│                │  ┌──────────────────────────┐    │
+│ ▸ Terminal     │  │ Manufacturing Panel      │    │
+│   Alpha        │  ├──────────────────────────┤    │
+│ ▸ Computational│  │ Business Panel           │    │
+│ ▸ Strategic    │  ├──────────────────────────┤    │
+│ ▸ Galactic     │  │ Computing Panel          │    │
+│                │  ├──────────────────────────┤    │
+│ ● SYS.STATUS  │  │ Projects / Activity Log  │    │
+│   NOMINAL      │  └──────────────────────────┘    │
 └──────────────────────────────────────────────────┘
 ```
+
+Main content is a **single-column stacked layout** (panels stack vertically). This matches the original Universal Paperclips game layout. NO 3-column grid.
 
 ### NavSidebar.tsx (260px, left side, ALL screens)
 - data-testid="nav-sidebar"
@@ -87,31 +89,73 @@ CRITICAL: The font is JetBrains Mono everywhere — headers, labels, data, butto
   - Optional status badge: gold bg (#D4A843), black text, 10px 700
 - Content area: padding 20px, vertical layout, gap 16px
 
-### Screen 1: Terminal Alpha (Manufacturing)
-Main content has title + 3 columns (gap 20px):
+### Screen 1: Terminal Alpha (Manufacturing) — Stacked Panels
+
+Main content has title + vertically stacked panels:
 
 **Title section:**
 - "TERMINAL ALPHA" — JetBrains Mono 28px 700
 - "Manufacturing Interface" — 13px muted
 
-**Left column (280px):**
-1. Manufacture button: Panel with dark header "EXECUTE: MANUFACTURE CLIP", icon + text
-2. "MANUAL PRODUCTION YIELD: 1" small muted text
-3. Automation Panel: header "AUTOMATION", AutoClippers Active count, DEPLOY AUTOCLIPPER button (outline), cost text
-4. Market Strategy Panel: header "MARKET STRATEGY", price display, LOWER/RAISE buttons, demand bar, marketing level + UPGRADE button
+### PROGRESSIVE REVEAL (Critical — matches original game)
+Metrics/sections are HIDDEN until unlocked by purchasing projects:
+- "Clips per Second" → shown after buying AutoClippers project
+- "Avg. Rev. per sec", "Avg. Clips Sold per sec", "Unsold Inventory" → shown after buying **RevTracker** project (check `flags.revTrackerEnabled`)
+- Wire Buyer toggle → shown after buying Wire Buyer project (check `flags.wireBuyerUnlocked`)
+- MegaClippers section → shown after buying MegaClippers project (check `flags.megaClippersUnlocked`)
+- Strategic Modeling → shown after buying Strategic Modeling project (check `flags.strategicModelingUnlocked`)
+- Trust milestone display: "+1 Trust at: X clips" — always show the next milestone
 
-**Center column (flex-1):**
-1. Metrics Panel: header "LIVE METRICS LEDGER" + gold "SYNCED" badge
-   - Paperclips: large BigMetric component (28px bold)
-   - Available Funds: gold colored value
-   - Wire Inventory + Public Demand + Wire Cost as Metric rows
-   - BUY WIRE button (outline)
+### Layout: 2-column (matching original, but better styled)
+Left column (50%): Business + Manufacturing. Right column (50%): Computational Resources + Projects.
 
-**Right column (280px):**
-1. Activity Log: header "SYSTEM ACTIVITY LOG" + copy icon
-   - Scrollable list of LogEntry components
-   - Each entry: timestamp (muted 10px) + message (12px)
-   - Warning entries: gold-colored text
+**Left Column — Top: Clip Production**
+- "Paperclips: [clips]" — large header (data-testid="clip-counter")
+- Make Paperclip button (data-testid="clip-button")
+- "Clips per Second: X" — ONLY shown if autoClippersUnlocked
+
+**Left Column — Business Section** (data-testid="business-panel")
+- "Available Funds: $X.XX" (data-testid="funds-display")
+- "Avg. Rev. per sec: $X.XX" — ONLY if `flags.revTrackerEnabled`
+- "Avg. Clips Sold per sec: X" — ONLY if `flags.revTrackerEnabled`
+- "Unsold Inventory: X" — ONLY if `flags.revTrackerEnabled`
+- Price per Clip: $X.XX + [lower] [raise] buttons (data-testid="price-display")
+- "Public Demand: X%"
+- Marketing: Level X + [Marketing] button + "Cost: $X"
+
+**Left Column — Manufacturing Section** (data-testid="manufacturing-controls")
+- Wire: X inches + [Wire] buy button + "Cost: $X" (data-testid="wire-panel")
+- Wire Buyer: ON/OFF toggle — ONLY if `flags.wireBuyerUnlocked`
+- AutoClippers: count + [AutoClippers] buy button + "Cost: $X"
+- MegaClippers: count + button + cost — ONLY if `flags.megaClippersUnlocked`
+
+**Panel 4: Computing** (data-testid="computing-panel")
+- Processors: count + ADD button
+- Memory: count + ADD button
+- Operations: current / max
+- Operations generation rate
+- Creativity: count (if creativityUnlocked)
+- COMPUTE button: "10 ops -> 1 creativity" (if quantumUnlocked)
+
+**Panel 5: Strategic Modeling** (data-testid="strat-modeling-panel") — only if strategicModelingUnlocked
+- Yomi: count display
+- Tournament round display
+- Pick buttons: A / B / RANDOM
+- Auto-tournament indicator (if autoTourneyEnabled)
+
+**Panel 6: Investment** (data-testid="investment-panel") — only if investmentUnlocked
+- Portfolio value
+- Deposit/Withdraw buttons for each tier (low/med/high)
+- Risk level display
+
+**Panel 7: Projects** (data-testid="project-list")
+- Scrollable list of available projects
+- Each project: name, description, cost, BUY button
+
+**Panel 8: Activity Log** (data-testid="activity-log")
+- Scrollable message feed, newest at top
+- Each entry: timestamp (muted 10px) + message (12px)
+- Warning entries: gold-colored text
 
 ### Button Primary (black bg, NOT gold)
 - Background: #000000 (black), text: white
@@ -213,42 +257,46 @@ Every component below MUST have the specified `data-testid`:
 ### Layout
 | Component | data-testid | Notes |
 |-----------|-------------|-------|
-| App | `app-container` | Root layout, multi-column grid |
+| App | `app` | Root layout, sidebar + stacked main |
+| NavSidebar | `nav-sidebar` | 260px sidebar, phase-aware |
 | Panel | `panel-{name}` | Reusable panel wrapper with dark header bar |
 
-### Phase 1 Components
+### Phase 1 Components (stacked panels)
 | Component | data-testid | Notes |
 |-----------|-------------|-------|
-| ClipCounter | `clip-counter` | Shows total clips (bigint formatted) |
-| ManualClipButton | `manual-clip-btn` | Click to make one clip |
-| PricingPanel | `pricing-panel` | Price slider/input, demand display |
-| AutoClipperPanel | `autoclipper-panel` | Buy/count for auto + mega clippers |
-| WirePanel | `wire-panel` | Wire inventory, buy button, wire price |
-| TrustPanel | `trust-panel` | Trust count, processor/memory allocation |
+| ManufacturingPanel | `manufacturing-panel` | Clip button, clip counter, clips/sec, unsold inventory |
+| ClipCounter | `clip-counter` | Shows total clips (bigint formatted) inside manufacturing panel |
+| ClipButton | `clip-button` | Click to make one clip |
+| BusinessPanel | `business-panel` | Pricing, demand, marketing, wire, wire buyer toggle |
+| FundsDisplay | `funds-display` | Available funds + revenue/sec |
+| PriceDisplay | `price-display` | Current price + LOWER/RAISE buttons |
+| WirePanel | `wire-panel` | Wire count, buy button, wire price (inside business panel) |
+| ManufacturingControls | `manufacturing-controls` | Autoclipper + megaclipper buy section |
+| ComputingPanel | `computing-panel` | Processors, memory, ops, creativity, COMPUTE button |
+| StratModelingPanel | `strat-modeling-panel` | Yomi, A/B/Random picks, tournament round |
+| InvestmentPanel | `investment-panel` | Deposit/withdraw tiers, portfolio value |
 | ProjectList | `project-list` | Filterable list of available projects |
-| InvestmentPanel | `investment-panel` | Portfolio, risk slider, stock/bond split |
-| CreativityDisplay | `creativity-display` | Creativity counter, quantum status |
 
 ### Phase 2 Components
 | Component | data-testid | Notes |
 |-----------|-------------|-------|
-| DronePanel | `drone-panel` | Harvester + wire drone counts and buy |
+| DronePanel | `drone-panel` | Harvester + wire drone counts and buy (with bulk count) |
 | FactoryPanel | `factory-panel` | Clip factory count (bigint) and buy |
 | PowerPanel | `power-panel` | Solar farms, batteries, stored power |
-| MomentumDisplay | `momentum-display` | Swarm computing momentum |
+| MatterPanel | `matter-panel` | Matter + acquired matter display |
 
 ### Phase 3 Components
 | Component | data-testid | Notes |
 |-----------|-------------|-------|
 | ProbePanel | `probe-panel` | Probe count, launch button |
-| ProbeStatsPanel | `probe-stats-panel` | Trust allocation sliders |
-| ExplorationDisplay | `exploration-display` | Sectors explored, drifter count |
-| CombatDisplay | `combat-display` | Honor, combat results |
+| ProbeStatsPanel | `probe-stats-panel` | 8-stat trust allocation (all ProbeStat values) |
+| ExplorationDisplay | `exploration-display` | Sectors explored, drifter count, probeDescendants |
+| CombatDisplay | `combat-display` | Honor, combat results, probeLosses |
 
 ### Cross-Phase Components
 | Component | data-testid | Notes |
 |-----------|-------------|-------|
-| MessageLog | `message-log` | Scrolling event feed |
+| ActivityLog | `activity-log` | Scrolling event feed |
 | PhaseTransition | `phase-transition` | Full-screen overlay on phase change |
 | NotificationToast | `notification-toast` | Ephemeral alerts |
 | SaveLoadPanel | `save-load-panel` | Save/load/reset buttons |
@@ -261,24 +309,22 @@ Every component below MUST have the specified `data-testid`:
 
 **CRITICAL: NavSidebar.tsx must be the FIRST component. App.tsx must use sidebar+main layout from minute 0. Chrome L2 FAILS if nav-sidebar data-testid is missing.**
 
-1. **layout-theme (Minutes 0-5):** NavSidebar.tsx FIRST (260px sidebar, data-testid="nav-sidebar"), then App.tsx with sidebar+main flex layout, Panel.tsx, global.css (bg #F5F5F0, JetBrains Mono on body)
-2. **components-p1 (Minutes 3-8):** Phase 1 components inside Panel wrappers
+1. **layout-theme (Minutes 0-5):** NavSidebar.tsx FIRST (260px sidebar, data-testid="nav-sidebar"), then App.tsx with sidebar + stacked-panel main layout (NOT 3-column grid), Panel.tsx, global.css (bg #F5F5F0, JetBrains Mono on body)
+2. **components-p1 (Minutes 3-8):** Phase 1 stacked panels: ManufacturingPanel, BusinessPanel, ManufacturingControls, ComputingPanel, StratModelingPanel, InvestmentPanel, ProjectList
 3. **message-log (Minutes 8-12):** ActivityLog, PhaseTransition, NotificationToast
-4. **components-p2p3 (Minutes 12-15):** Phase 2/3 components
+4. **components-p2p3 (Minutes 12-15):** Phase 2: DronePanel, FactoryPanel, PowerPanel, MatterPanel. Phase 3: ProbePanel, ProbeStatsPanel (8 stats), ExplorationDisplay, CombatDisplay
 
 ### Minute 3-8: components-p1
 
-- `src/components/ClipCounter.tsx` -- big number display, formatted with formatBigInt
-- `src/components/ManualClipButton.tsx` -- dispatches MAKE_CLIP
-- `src/components/PricingPanel.tsx` -- price input/slider, demand readout
-- `src/components/AutoClipperPanel.tsx` -- buy buttons, count display, cost display
-- `src/components/WirePanel.tsx` -- wire count, buy button, wire price
-- `src/components/TrustPanel.tsx` -- trust points, +processor/-memory buttons
+- `src/components/ManufacturingPanel.tsx` -- clip button, clip counter (bigint), clips/sec, unsold inventory
+- `src/components/BusinessPanel.tsx` -- funds + revenue/sec, pricing + LOWER/RAISE, demand, marketing, wire + buy, wire buyer toggle
+- `src/components/ManufacturingControls.tsx` -- autoclipper + megaclipper buy/count/cost
+- `src/components/ComputingPanel.tsx` -- processors, memory, ops, creativity, COMPUTE button
+- `src/components/StratModelingPanel.tsx` -- yomi, tournament round, A/B/RANDOM pick buttons, auto-tourney indicator
+- `src/components/InvestmentPanel.tsx` -- portfolio display, deposit/withdraw by tier
 - `src/components/ProjectList.tsx` -- lists available projects, buy button for each
-- `src/components/InvestmentPanel.tsx` -- portfolio display, risk slider
-- `src/components/CreativityDisplay.tsx` -- creativity counter
 
-Use `createMockState()` from `src/shared/mockState.ts` for development. The `useGameState()` hook won't be wired until integration — use mock data directly.
+Use `createMockState()` from `src/shared/mockState.ts` for development. The `useGameState()` hook won't be wired until integration -- use mock data directly.
 
 ### Minute 8-12: message-log
 
@@ -288,14 +334,14 @@ Use `createMockState()` from `src/shared/mockState.ts` for development. The `use
 
 ### Minute 12-15: components-p2p3
 
-- `src/components/DronePanel.tsx` -- harvester + wire drone display
-- `src/components/FactoryPanel.tsx` -- clip factory count (bigint)
-- `src/components/PowerPanel.tsx` -- solar/battery/power display
-- `src/components/MomentumDisplay.tsx` -- momentum readout
-- `src/components/ProbePanel.tsx` -- probe count + launch
-- `src/components/ProbeStatsPanel.tsx` -- trust allocation sliders for 4 stats
-- `src/components/ExplorationDisplay.tsx` -- sectors explored, drifter encounters
-- `src/components/CombatDisplay.tsx` -- honor, combat log
+- `src/components/DronePanel.tsx` -- harvester + wire drone display, bulk buy with count
+- `src/components/FactoryPanel.tsx` -- clip factory count (bigint), bulk buy
+- `src/components/PowerPanel.tsx` -- solar farms/batteries/stored power, bulk buy
+- `src/components/MatterPanel.tsx` -- matter + acquired matter display
+- `src/components/ProbePanel.tsx` -- probe count + launch button (shows cost)
+- `src/components/ProbeStatsPanel.tsx` -- trust allocation for ALL 8 stats (speed, exploration, selfReplication, combat, hazardRemediation, factoryProd, harvesterProd, wireDroneProd)
+- `src/components/ExplorationDisplay.tsx` -- sectors explored, drifter count, probeDescendants
+- `src/components/CombatDisplay.tsx` -- honor, combat log, probeLosses
 
 Phase 2/3 components can be stub panels (correct layout, placeholder data) if time is tight.
 
@@ -331,36 +377,16 @@ Run tests with: `npx vitest run tests/ui/`
 The orchestrator verifies your work in a real browser using Chrome MCP tools. Here's exactly what it checks — **you will fail** if any of these are wrong:
 
 ### L2 — DOM Structure
-```js
-// Must find ALL of these:
-document.querySelectorAll('[data-testid]')
-// Required: app, page-header, clip-button, metrics-ledger,
-// clip-counter, funds-display, wire-panel, price-display,
-// activity-log, autoclipper-panel, project-list
-```
-**Missing any data-testid = L2 FAIL → task routed back to you.**
+Required data-testids: `app`, `page-header`, `nav-sidebar`, `manufacturing-panel`, `business-panel`, `manufacturing-controls`, `computing-panel`, `clip-counter`, `clip-button`, `funds-display`, `activity-log`, `project-list`. Phase 2+: `drone-panel`, `factory-panel`, `power-panel`, `matter-panel`. Phase 3+: `probe-panel`, `probe-stats-panel`, `exploration-display`, `combat-display`.
+**Missing any = L2 FAIL.**
 
 ### L3 — Theme Verification
-```js
-getComputedStyle(document.body).backgroundColor  // must be rgb(255, 255, 255)
-getComputedStyle(header).backgroundColor          // must be rgb(26, 26, 26)
-getComputedStyle(clipBtn).backgroundColor         // must be rgb(218, 165, 32)
-getComputedStyle(body).fontFamily                 // must include 'Inter'
-getComputedStyle('.font-data').fontFamily          // must include 'JetBrains Mono'
-```
-**Wrong colors/fonts = L3 FAIL → "WY theme missing" routed to you.**
+- Body bg: `rgb(245, 245, 240)` (#F5F5F0, NOT pure white)
+- Panel borders: #D4D4D0 (NOT black)
+- Font: JetBrains Mono everywhere (no Orbitron, no Inter)
+**Wrong = L3 FAIL.**
 
-### L5 — Data Display
-```js
-// Every .font-data element is checked for:
-// - No "NaN" in textContent
-// - No "[object" in textContent
-// - No "undefined" in textContent
-```
-**Any NaN/undefined = L5 FAIL → "formatBigInt() broken" routed to Core, display issue to you.**
-
-### Design Fidelity Check
-The orchestrator takes a screenshot via `mcp__claude-in-chrome__computer` and compares it visually against the Pencil design. If the layout doesn't match the design.pen screens, it's scored as Theme Coherence < 3 and routed back to you.
+### L5 — No NaN/undefined in `.font-data` elements. **Any = L5 FAIL.**
 
 ---
 

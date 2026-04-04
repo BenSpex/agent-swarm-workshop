@@ -21,7 +21,7 @@ You are the **Systems team lead**. You operate in **delegate mode**: you coordin
 |------|---------------|
 | projects-p1 | `src/systems/projects/index.ts` + `phase1.ts` -- Project registry and all Phase 1 projects (~20 projects) |
 | projects-p2p3 | `src/systems/projects/phase2.ts` + `phase3.ts` -- Phase 2 and Phase 3 projects |
-| subsystems | `src/systems/investment.ts`, `quantum.ts`, `trust.ts`, `probes.ts` -- Tick updater subsystems |
+| subsystems | `src/systems/investment.ts`, `quantum.ts`, `trust.ts`, `probes.ts`, `stratModeling.ts`, `wireBuyer.ts`, `swarm.ts`, `matter.ts` -- Tick updater subsystems |
 
 ## Test Command
 
@@ -87,14 +87,18 @@ projects-p1 and subsystems can start in parallel. projects-p2p3 benefits from se
 - Quantum: generate creativity when quantumUnlocked flag is true
 - Trust: check clip milestones and award trust points
 - Probes: exploration, replication, drifter encounters, combat (Phase 3 only). **See detailed probe mechanics below.**
+- **stratModeling.ts**: tournament engine with 2x2 payoff matrix. Auto-play when `autoTourneyEnabled`. Track yomi and stratModelRound.
+- **wireBuyer.ts**: auto-buy wire when `wireBuyerEnabled && wire < 10 && funds >= wirePrice`. Called each tick.
+- **swarm.ts**: swarm computing that generates gifts (bonus ops/creativity) when `swarmSyncActive`. Uses momentum and swarmSyncLevel.
+- **matter.ts**: matter harvesting when `matterHarvestingActive`. Converts harvested matter via harvesters into `acquiredMatter`, feeds wire drones and factories.
 
 **Probe Mechanics (MUST match original Universal Paperclips):**
 
 The probe system is the most complex subsystem. Get it right:
 
-1. **Probe Trust is a SEPARATE pool** from processor/memory trust. It starts at 0. It is earned from projects (e.g., "Coherent Extrapolated Volition") and honor rewards. Probe stats (Speed, Exploration, Self-Replication, Combat, Hazard Remediation) are allocated FROM this pool.
+1. **Probe Trust is a SEPARATE pool** from processor/memory trust. It starts at 0. It is earned from projects (e.g., "Coherent Extrapolated Volition") and honor rewards. Probe stats (Speed, Exploration, Self-Replication, Combat, Hazard Remediation, Factory Prod, Harvester Prod, Wire Drone Prod) are allocated FROM this pool.
 
-2. **5 probe stats** (not 4): Speed, Exploration, Self-Replication, Combat, **Hazard Remediation**. All start at 1. The ADJUST_PROBE action MUST check `probeTrust > 0` before incrementing, and MUST decrement `probeTrust` by 1 when incrementing. Decrementing a stat returns 1 trust to the pool.
+2. **8 probe stats** (not 4 or 5): Speed, Exploration, Self-Replication, Combat, **Hazard Remediation**, **Factory Prod**, **Harvester Prod**, **Wire Drone Prod**. All start at 1. The ADJUST_PROBE action MUST check `probeTrust > 0` before incrementing, and MUST decrement `probeTrust` by 1 when incrementing. Decrementing a stat returns 1 trust to the pool. The production stats (factoryProd, harvesterProd, wireDroneProd) allow probes to produce resources autonomously in Phase 3.
 
 3. **probeSpeed** MUST affect gameplay: exploration per tick = `probes * probeExploration * probeSpeed`. Speed is a multiplier, not ignored.
 
@@ -105,6 +109,10 @@ The probe system is the most complex subsystem. Get it right:
 6. **Combat**: Compare `probeCombat * probeCount` vs `drifterCount * drifterStrength`. Use probabilistic resolution (not a simple threshold). On win: +honor, drifters destroyed. On loss: probes lost proportional to drifter strength, reduced by **Hazard Remediation** stat.
 
 7. **Hazard Remediation**: Reduces probe losses in failed combat. Loss formula: `probesLost = baselosses / (1 + hazardRemediation)`.
+
+8. **probeDescendants** (bigint): Track total probes ever created through self-replication. Increment whenever new probes are born from replication.
+
+9. **probeLosses** (bigint): Track total probes lost in combat. Increment whenever probes are destroyed by drifters.
 
 **projects-p2p3 must know:**
 - Follow the same pattern as Phase 1 projects
