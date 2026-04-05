@@ -130,17 +130,41 @@ These are stored as `number` on GameState and updated every TICK.
 - Recovers partial resources (e.g., 50% of build cost returned as matter or stored power).
 - Guard: must have enough of the target to disassemble.
 
+### BUY_WIRE Action (CRITICAL — game-breaking if wrong)
+- Guard: `funds >= wirePrice`
+- Effect: `funds -= wirePrice`, `wire += 1000` (1 spool = 1000 inches of wire)
+- This is the ONLY way to get wire in Phase 1. If this doesn't work, no clips can be made.
+- The button in the UI dispatches `{ type: 'BUY_WIRE' }`. The reducer MUST handle it.
+
 ## Probe Action Rules (CRITICAL for Phase 3)
 
 The reducer MUST implement these probe actions correctly:
 
 1. **LAUNCH_PROBE**: Must cost resources (e.g., deduct funds or operations). Do NOT give probes for free. Return state unchanged if player can't afford it.
 
-2. **ADJUST_PROBE**: Must consume `probeTrust` when incrementing a stat (+1 stat costs 1 probeTrust). Must return `probeTrust` when decrementing (-1 stat returns 1 probeTrust). Reject increment if `probeTrust <= 0`. Reject decrement if stat is already at minimum (1).
+2. **ADJUST_PROBE**: `probeTrust` stores TOTAL trust earned (from projects/honor). It is NEVER modified by ADJUST_PROBE.
+   - All 8 stats start at 1 (free baseline, does NOT count against trust).
+   - Available trust = `probeTrust - (sum_of_all_8_stats - 8)` — a DERIVED value, not stored.
+   - INCREMENT (+1): Guard: available trust > 0. Increment the stat. Do NOT modify probeTrust.
+   - DECREMENT (-1): Guard: stat > 1 (1 is the minimum). Decrement the stat. Do NOT modify probeTrust.
+   - The UI calculates "Available Trust" for display as: `probeTrust - (sum_of_all_8_stats - 8)`.
 
 3. **Probe stats**: There are **8 stats** (not 4 or 5): `probeSpeed`, `probeExploration`, `probeSelfReplication`, `probeCombat`, `probeHazardRemediation`, `probeFactoryProd`, `probeHarvesterProd`, `probeWireDroneProd`. All start at 1. The production stats (factoryProd, harvesterProd, wireDroneProd) allow probes to generate resources in Phase 3.
 
 4. **probeDescendants** (bigint): tracks total probes ever created through self-replication. **probeLosses** (bigint): tracks total probes lost in combat.
+
+## Subsystem Integration (CRITICAL)
+
+The TICK reducer MUST import and call subsystem tick updaters from `src/systems/`. This is explicitly allowed by Constitution Article 6. DO NOT inline all subsystem logic in the reducer — keep it under 300 lines. Import and call these functions in the TICK handler:
+
+- `updateWireBuyer(state)` from `src/systems/wireBuyer.ts`
+- `updateInvestment(state)` from `src/systems/investment.ts`
+- `updateCreativity(state)` from `src/systems/quantum.ts`
+- `checkTrustMilestone(state)` from `src/systems/trust.ts`
+- `updateMatter(state)` from `src/systems/matter.ts`
+- `updateSwarm(state)` from `src/systems/swarm.ts`
+- `updateProbes(state)` from `src/systems/probes.ts`
+- `updateStratModeling(state)` from `src/systems/stratModeling.ts`
 
 ## Coordination Rules
 

@@ -112,9 +112,106 @@ Build `src/core/save.ts`:
 
 Wire formulas into tick reducer:
 - Each TICK calls subsystem updaters in the 13-step order below
-- Handle all Phase 1 actions: MAKE_CLIP, BUY_WIRE, SET_PRICE, BUY_AUTOCLIPPER, etc.
-- Handle new actions: TOGGLE_WIRE_BUYER, STRAT_PICK, STRAT_NEW_TOURNAMENT, COMPUTE, DEPOSIT, WITHDRAW, DISASSEMBLE
+- Handle all actions listed in the Action Catalog below
 - Auto-save every 250 ticks (25 seconds)
+
+---
+
+## Action Catalog (COMPLETE — every action the reducer must handle)
+
+### MAKE_CLIP
+- Guard: `wire >= 1`
+- Effect: `clips += 1n`, `unsoldClips += 1n`, `wire -= 1`
+- CRITICAL: Each clip costs EXACTLY 1 wire. Return state unchanged if wire is 0.
+
+### BUY_WIRE (CRITICAL — game-breaking if wrong)
+- Guard: `funds >= wirePrice`
+- Effect: `funds -= wirePrice`, `wire += 1000` (1 spool = 1000 inches of wire)
+- wirePrice fluctuates each tick (+/- random, clamped [10, 35])
+- This is how players get wire in Phase 1. If this action doesn't work, the game is unplayable.
+
+### SET_PRICE
+- Effect: `price = action.price`, clamped to [0.01, 9.99]
+- LOWER button: price -= 0.01. RAISE button: price += 0.01.
+
+### BUY_AUTOCLIPPER
+- Guard: `funds >= autoClipperCost`
+- Effect: `funds -= autoClipperCost`, `autoClipperCount += 1`, recalculate cost
+
+### BUY_MEGACLIPPER
+- Guard: `funds >= megaClipperCost && flags.megaClippersUnlocked`
+- Effect: `funds -= megaClipperCost`, `megaClipperCount += 1`, recalculate cost
+
+### BUY_MARKETING
+- Guard: `funds >= marketingCost`
+- Effect: `funds -= marketingCost`, `marketingLevel += 1`, recalculate cost
+
+### ADD_PROCESSOR / ADD_MEMORY
+- Guard: `trust > processors + memory` (available trust > 0)
+- Effect: increment processors or memory by 1
+
+### BUY_PROJECT
+- Guard: project.isAvailable(state) && !purchasedProjectIds.has(id) && player can afford cost
+- Effect: deduct cost, add to purchasedProjectIds, apply project.effect(state)
+
+### TOGGLE_WIRE_BUYER
+- Guard: `flags.wireBuyerUnlocked`
+- Effect: flip `wireBuyerEnabled` boolean
+
+### STRAT_PICK
+- Guard: `flags.strategicModelingUnlocked`
+- Effect: resolve round using payoff matrix, update yomi
+
+### COMPUTE
+- Guard: `flags.quantumUnlocked && operations >= 10`
+- Effect: `operations -= 10`, `creativity += 1`
+
+### DEPOSIT / WITHDRAW
+- Guard: sufficient funds/portfolio balance
+- Effect: move amount between funds and investment tier
+
+### LAUNCH_PROBE
+- Guard: `funds >= probeLaunchCost` (define a real cost, e.g. 10000 ops or 50000 funds)
+- Effect: `probes += 1n`, deduct cost. Probes are NOT free.
+
+### ADJUST_PROBE (CRITICAL — read this very carefully)
+- `probeTrust` = TOTAL trust earned (from projects/honor). NEVER modified by ADJUST_PROBE.
+- All 8 stats start at 1 (free baseline, does NOT count against probeTrust).
+- Available trust = `probeTrust - (sum_of_all_8_stats - 8)` — a DERIVED value.
+- INCREMENT (+1): Guard: available trust > 0. Increment the stat by 1. Do NOT modify probeTrust.
+- DECREMENT (-1): Guard: stat > 1 (minimum is 1). Decrement the stat by 1. Do NOT modify probeTrust.
+- The UI computes and displays "Available Trust" as: `probeTrust - (sum_of_all_8_stats - 8)`.
+
+### Phase 2 Purchases (BUY_HARVESTER, BUY_WIRE_DRONE, BUY_FACTORY, BUY_SOLAR_FARM, BUY_BATTERY)
+- Each has a cost (funds, matter, or power). Guard: can afford.
+- Optional `count` field for bulk purchase (multiply cost, add count units).
+
+### DISASSEMBLE
+- Guard: have enough of target unit
+- Effect: remove units, recover 50% of build cost as resources
+
+### PRESTIGE
+- Effect: reset game state to initial, increment prestigeCount, keep universalPaperclips total
+
+---
+
+## Subsystem Integration (CRITICAL)
+
+The TICK reducer MUST import and call subsystem tick updaters from `src/systems/`.
+Core team may IMPORT (read) from `src/systems/` — Constitution Article 6 explicitly allows this.
+DO NOT inline subsystem logic in the reducer. Keep the reducer under 300 lines (Article 7).
+
+Import and call these in the TICK handler:
+- `updateWireBuyer(state)` from `src/systems/wireBuyer.ts`
+- `updateInvestment(state)` from `src/systems/investment.ts`
+- `updateCreativity(state)` from `src/systems/quantum.ts`
+- `checkTrustMilestone(state)` from `src/systems/trust.ts`
+- `updateMatter(state)` from `src/systems/matter.ts`
+- `updateSwarm(state)` from `src/systems/swarm.ts`
+- `updateProbes(state)` from `src/systems/probes.ts`
+- `updateStratModeling(state)` from `src/systems/stratModeling.ts`
+
+The reducer's job is ORCHESTRATION: call subsystems in deterministic order, handle simple Phase 1 inline logic (sell clips, auto-clip from wire, wire price fluctuation), and compute derived metrics. Complex subsystem logic belongs in `src/systems/`.
 
 ---
 

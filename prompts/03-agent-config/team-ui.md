@@ -90,7 +90,7 @@ After layout-theme completes and after each major component batch, take a screen
 | **Theme Coherence** | Wrong colors, dark mode, CRT look | White bg, black borders, amber accents visible | Perfect WY Corporate Clinical: oppressive, clean, corporate |
 | **Layout Craft** | Overlapping elements, broken grid | Multi-column grid works, panels aligned | Tight structural grid, balanced whitespace, professional |
 | **Functionality** | Components don't render or crash | Components render with mock data, buttons exist | All interactions wired, proper state display, smooth updates |
-| **Data Display** | Numbers raw or missing | Numbers formatted (K/M/B/T), labels present | JetBrains Mono for data, Orbitron headers, proper hierarchy |
+| **Data Display** | Numbers raw or missing | Numbers formatted (K/M/B/T), labels present | JetBrains Mono for all text, proper hierarchy |
 
 If any criterion scores below 3, return the component to its teammate with specific visual fix instructions and the screenshot showing the problem.
 
@@ -110,7 +110,7 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 **layout-theme must know:**
 - Import WY_THEME from `src/shared/theme.ts` and map to Tailwind config
 - Import fonts in `index.html`: JetBrains Mono from Google Fonts CDN (ONLY JetBrains Mono, no Orbitron, no Inter)
-- App.tsx uses `display:flex` with 260px sidebar + main content (flex-1). Main content is a single-column stacked layout (panels stack vertically). NOT a 3-column grid.
+- App.tsx uses `display:flex` with 260px sidebar + main content (flex-1). Main content uses a 2-column CSS grid (`grid-template-columns: 1fr 1fr`, gap 16px). NOT a 3-column grid. Falls back to single-column on narrow screens.
 - Panel.tsx: dark #000000 header bar, white #FFFFFF body, 1px solid #D4D4D0 border, 4px border-radius
 - global.css: base styles, box-sizing, font-family defaults (JetBrains Mono everywhere)
 
@@ -134,14 +134,17 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 
 **message-log must know:**
 - MessageLog: scrolling feed, newest message at top, auto-scroll on new messages
-- PhaseTransition: full-screen overlay, Orbitron font for "PHASE 2" / "PHASE 3" header, fade animation
+- PhaseTransition: full-screen overlay, JetBrains Mono 28px bold for "PHASE 2" / "PHASE 3" header, fade animation
 - NotificationToast: positioned top-right, auto-dismiss after 3 seconds, amber accent border
 
 ## Design Rules (CRITICAL — violations = Chrome L3 FAIL)
 
 1. **FONT: JetBrains Mono is the ONLY font.** Do NOT use Orbitron or Inter anywhere. If you see them in theme.ts, IGNORE them. Every element uses JetBrains Mono.
 
-2. **LAYOUT: Sidebar + Stacked Panels.** Every screen has a 260px NavSidebar on the left. App.tsx is `display:flex` with sidebar (260px fixed) + main content (flex-1). Main content uses a **single-column stacked layout** — panels stack vertically from top to bottom, NOT a 3-column grid. This matches the original Universal Paperclips layout.
+2. **LAYOUT: Sidebar + 2-Column Grid.** Every screen has a 260px NavSidebar on the left. App.tsx is `display:flex` with sidebar (260px fixed) + main content (flex-1). Main content uses a **2-column CSS grid** (`grid-template-columns: 1fr 1fr`, gap 16px) on screens ≥768px, falling back to single-column on narrow screens. NOT a 3-column grid. This matches the original Universal Paperclips layout.
+   - Phase 1: Left = Manufacturing + Business + Manufacturing Controls. Right = Computing + Strategic Modeling + Investment + Projects + Activity Log.
+   - Phase 2: Left = P2 panels (Drones, Factories, Power, Matter) prominent. Right = condensed P1 + Projects.
+   - Phase 3: Left = P3 panels (Probes, Config, Exploration, Combat) dominant. Right = condensed earlier panels + Projects.
 
 3. **COLORS from Pencil (override theme.ts if different):**
    - Page bg: #F5F5F0 (warm off-white, NOT pure white #FFFFFF)
@@ -191,6 +194,8 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Yomi count (from `state.yomi`)
 
 8. **BUILD ORDER:** NavSidebar.tsx is built FIRST by layout-theme, before ANY other component.
+
+9. **SIDEBAR SCROLLING:** NavSidebar must have `max-height: 100vh` and `overflow-y: auto` so it scrolls independently when the main content is longer. Clicking a nav item should call `scrollIntoView({ behavior: 'smooth' })` on the corresponding section in the main content.
 
 Reference image: `images/image.png` in repo root shows the target design with sidebar.
 

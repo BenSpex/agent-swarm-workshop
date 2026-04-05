@@ -50,25 +50,38 @@ CRITICAL: The font is JetBrains Mono everywhere — headers, labels, data, butto
 
 ### App Shell Layout (ALL screens share this)
 ```
-┌──────────────────────────────────────────────────┐
-│ 260px SIDEBAR  │  MAIN CONTENT (flex-1, stacked) │
-│                │                                  │
-│ WEYLAND CORP   │  TERMINAL ALPHA                  │
-│ AI INIT:       │  Manufacturing Interface          │
-│ MU-TH-UR 6000 │                                  │
-│                │  ┌──────────────────────────┐    │
-│ ▸ Terminal     │  │ Manufacturing Panel      │    │
-│   Alpha        │  ├──────────────────────────┤    │
-│ ▸ Computational│  │ Business Panel           │    │
-│ ▸ Strategic    │  ├──────────────────────────┤    │
-│ ▸ Galactic     │  │ Computing Panel          │    │
-│                │  ├──────────────────────────┤    │
-│ ● SYS.STATUS  │  │ Projects / Activity Log  │    │
-│   NOMINAL      │  └──────────────────────────┘    │
-└──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ 260px SIDEBAR  │  MAIN CONTENT (flex-1, 2-column grid)         │
+│                │                                                │
+│ WEYLAND CORP   │  TERMINAL ALPHA                                │
+│ AI INIT:       │  Manufacturing Interface                       │
+│ MU-TH-UR 6000 │                                                │
+│                │  ┌─────────────────┬─────────────────┐         │
+│ ▸ Terminal     │  │ Manufacturing   │ Computing       │         │
+│   Alpha        │  │ Panel           │ Panel           │         │
+│ ▸ Computational│  ├─────────────────┼─────────────────┤         │
+│ ▸ Strategic    │  │ Business        │ Strat Modeling   │         │
+│ ▸ Galactic     │  │ Panel           │ + Projects      │         │
+│                │  ├─────────────────┼─────────────────┤         │
+│ ● SYS.STATUS  │  │ Manufacturing   │ Activity Log    │         │
+│   NOMINAL      │  │ Controls        │                 │         │
+│                │  └─────────────────┴─────────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Main content is a **single-column stacked layout** (panels stack vertically). This matches the original Universal Paperclips game layout. NO 3-column grid.
+Main content uses a **2-column grid layout** (`grid-template-columns: 1fr 1fr`) on screens wider than 768px, falling back to single-column on narrow screens. This matches the original Universal Paperclips game. NOT a 3-column grid.
+
+Phase 1 layout:
+- Left column: Manufacturing Panel (clip button + counter), Business Panel (pricing, demand, marketing, wire), Manufacturing Controls
+- Right column: Computing Panel, Strategic Modeling, Investment, Project List, Activity Log
+
+Phase 2 layout (reorganize, don't just stack more panels below):
+- Left column: Phase 2 panels (Drones, Factories, Power, Matter) prominent
+- Right column: Condensed P1 panels, Projects, Activity Log
+
+Phase 3 layout (reorganize again):
+- Left column: Phase 3 panels (Probes, Probe Config, Exploration, Combat) dominant
+- Right column: Condensed earlier-phase panels, Projects
 
 ### NavSidebar.tsx (260px, left side, ALL screens)
 - data-testid="nav-sidebar"
@@ -207,46 +220,12 @@ See `images/image.png` in the repo root — this is the Stitch screenshot showin
 
 ---
 
-## WY_THEME Reference (from Pencil design tokens)
+## WY_THEME Reference
 
-**CRITICAL: JetBrains Mono is the ONLY font. No Orbitron. No Inter. Everything is monospace.**
-
-```
-Colors (EXACT from design.pen):
-  --background:      #F5F5F0    Page bg (warm off-white, NOT pure white)
-  --foreground:      #1A1A1A    Primary text
-  --card:            #FFFFFF    Panel/card backgrounds
-  --border:          #D4D4D0    Panel borders (light gray, NOT black)
-  --muted-foreground:#7A7A75    Secondary/disabled text
-  --accent-gold:     #D4A843    Gold accent (badges, highlights)
-  --black:           #000000    Panel header bars
-  --white:           #FFFFFF    Text on dark backgrounds
-  --success:         #2D8A4E    Green status indicators
-  --warning:         #D4A843    Gold warnings
-  --error:           #CC3314    Red alerts
-
-Fonts:
-  EVERYTHING: 'JetBrains Mono', monospace — headers, body, data, buttons, labels
-
-Sizes:
-  Title:    28px 700
-  Header:   14px 700, letter-spacing 1px, UPPERCASE
-  Body:     13px 400
-  Small:    10-11px, muted color
-  Button:   12px 700, letter-spacing 1px, UPPERCASE
-
-Border radius: 4px (panels), 2px (badges/buttons)
-Border: 1px solid #D4D4D0 (NOT black — light gray)
-```
-
-**Visual rules:**
-- Page background is #F5F5F0 (warm off-white) NOT pure white
-- Panel borders are #D4D4D0 (light gray) NOT #000000 (black)
-- Panel header bars are #000000 (black) with white text
-- Gold accent is #D4A843 NOT #DAA520
-- JetBrains Mono EVERYWHERE — no other fonts, no Orbitron, no Inter
+See **Design Tokens** section above for exact color/font values. Key reminders:
+- JetBrains Mono EVERYWHERE — no Orbitron, no Inter
+- Page bg #F5F5F0 (NOT white), borders #D4D4D0 (NOT black), gold #D4A843 (NOT #DAA520)
 - NO scanlines, NO CRT glow, NO green-on-black
-- Grid layout with visible structural lines
 
 ---
 
@@ -392,23 +371,4 @@ Required data-testids: `app`, `page-header`, `nav-sidebar`, `manufacturing-panel
 
 ## Context Checkpoint Format
 
-Before any context reset, write to `.swarm/checkpoints/{your-name}.md`:
-
-```markdown
-# Checkpoint: {agent-name}
-## Timestamp: {ISO-8601}
-## Status: {in-progress | blocked | done}
-
-### Completed
-- [x] file.tsx -- description
-
-### In Progress
-- [ ] file.tsx -- what remains
-
-### Blocked On
-- {blocker description}
-
-### Next Steps
-1. First thing after reset
-2. Second thing
-```
+See `constitution.md` Article 9 for the checkpoint format.

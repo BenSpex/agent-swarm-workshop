@@ -24,6 +24,8 @@ Types in `src/shared/` are frozen after Phase 0. Adding a new optional field req
 - Systems: `src/systems/*`
 - UI: `src/components/*`, `src/hooks/*`, `src/styles/*`, `tailwind.config.ts`, `index.html`, `public/*`
 
+**Cross-team imports:** Core may IMPORT (read) exported functions from `src/systems/` in the tick reducer. This is a read operation, not a modification, and is explicitly allowed. Systems exports pure `(state) => state` functions; Core orchestrates them in the tick order.
+
 ### Article 7: Max 300 Lines Per File
 Decompose into directory with `index.ts` barrel export if approaching limit. Projects split by category, components split by phase.
 

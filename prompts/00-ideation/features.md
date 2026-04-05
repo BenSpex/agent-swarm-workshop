@@ -57,7 +57,7 @@ Key Phase 2 projects:
 
 Key mechanics:
 - **Probes** (bigint) -- self-replicating space probes
-- **Probe trust** -- allocated between 4 stats (speed, exploration, selfReplication, combat)
+- **Probe trust** -- allocated between 8 stats (speed, exploration, selfReplication, combat, hazardRemediation, factoryProd, harvesterProd, wireDroneProd)
 - **Exploration** -- probes explore sectors of the universe
 - **Explored sectors** (bigint) -- count of mapped universe regions
 - **Drifters** (bigint) -- encountered entities, some hostile

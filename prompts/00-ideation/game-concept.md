@@ -10,8 +10,8 @@ The game is reskinned with the Weyland-Yutani Corporation aesthetic from the Ali
 
 - **Clinical stark whites** -- white backgrounds, white panels
 - **Harsh black structural grids** -- 1px solid black borders, structural grid lines
-- **Monospace typography** -- JetBrains Mono for data, Orbitron for headers, Inter for body
-- **Aggressive caution amber accents** -- #DAA520 amber/gold for CTAs and important data
+- **Monospace typography** -- JetBrains Mono everywhere (headers, data, body, buttons)
+- **Aggressive caution amber accents** -- #D4A843 amber/gold for CTAs and important data
 - **Red warnings** -- #CC0000 for alerts, danger states, and critical warnings
 - **Dark header bars** -- #1A1A1A near-black for panel headers
 

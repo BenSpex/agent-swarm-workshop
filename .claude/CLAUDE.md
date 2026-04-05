@@ -347,7 +347,7 @@ After reset: read your checkpoint FIRST, then this file, then continue the monit
 
 ---
 
-## Post-Mortem Learnings (Run 4)
+## Post-Mortem Learnings (Runs 4-8)
 
 ### 1. Engine Wiring is a Cross-Team Integration Task
 UI team builds components with `createMockState()` (static data). Core team builds the engine with `createEngine()`. **Neither team naturally creates the bridge.** The orchestrator MUST explicitly assign engine wiring early:
@@ -382,3 +382,15 @@ Run 4 stacked Phase 2/3 panels below Phase 1 panels, creating a long scroll page
 
 ### 8. Probe Mechanics Were Wrong
 Run 4's ADJUST_PROBE was free (no trust consumed), LAUNCH_PROBE was free (no cost), probeSpeed was dead code (never used), Hazard Remediation stat was missing entirely, and combat was a simple threshold not probabilistic. The systems and core prompts now specify exact probe mechanics matching the original game. L4 Phase 3 checks now verify trust consumption, probe costs, and all 5 stats.
+
+### 9. Layout Spec Contradiction Caused Single-Column Regression
+spec-ui.md said both "single-column stacked" and "2-column" in different places. The UI team followed the first instruction (which appears earlier and more prominently), creating massive dead white space on wide monitors. ALL layout instructions must be consistent — the canonical layout is 2-column grid, reorganized per phase.
+
+### 10. BUY_WIRE Was Never Explicitly Specified
+The spec listed `BUY_WIRE` as an action name but never defined its guard/effect. The Core team's implementation was broken. Every action MUST have explicit guard + effect in the spec. BUY_WIRE: guard `funds >= wirePrice`, effect `funds -= wirePrice, wire += 1000`.
+
+### 11. "Consume probeTrust" Was Ambiguous
+The prompt said "consume probeTrust when incrementing a stat". The agent decremented `probeTrust` AND incremented the stat, permanently destroying trust points. The correct model: `probeTrust` is TOTAL earned trust (never modified by ADJUST_PROBE). Available trust is a derived value: `probeTrust - (sum_of_all_8_stats - 8)`.
+
+### 12. Reducer Inlined All Subsystem Logic (540 Lines)
+Without explicit instruction to import from `src/systems/`, the Core team inlined all subsystem logic into `reducer.ts`, exceeding the 300-line limit and making the Systems team's files dead code. The spec now explicitly requires importing subsystem tick updaters.
