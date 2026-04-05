@@ -1,32 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# launch-tmux.sh
-# Creates a tmux session "swarm" with a single pane for the orchestrator.
-# Agent teams create additional tmux panes automatically via built-in team feature.
+# launch-tmux.sh — 4-pane tmux session
+# Each pane runs its own Claude Code session with its own agent team.
+# Pane 0: Orchestrator (monitors, merges, Chrome MCP verifies)
+# Pane 1: Core team (engine, formulas, save)
+# Pane 2: Systems team (projects, subsystems)
+# Pane 3: UI team (components, layout, design enforcement)
 
 SESSION="swarm"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+WORKTREES="$REPO_ROOT/.swarm/worktrees"
 
 # Kill existing session if present
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 
-echo "=== Launching tmux session: $SESSION ==="
+echo "=== Launching tmux swarm: 4 panes ==="
 
-# Initial prompt that kicks off the orchestration
-INIT_PROMPT="You are the orchestrator. Read .claude/CLAUDE.md for your full instructions. Then:
-1. Start the dev server: npm run dev
-2. Create 3 agent teams using TeamCreate — one for each team lead (core-lead, systems-lead, ui-lead)
-3. For each team, read the spawn prompt from prompts/03-agent-config/team-{core,systems,ui}.md and pass it as the team prompt
-4. Each team lead works in their worktree: .swarm/worktrees/{core,systems,ui}/
-5. Begin the monitor loop: observe teams, merge when ready, Chrome MCP verify, route failures
-GO."
+# Create session — Pane 0: Orchestrator (repo root)
+tmux new-session -d -s "$SESSION" -n "swarm" -c "$REPO_ROOT"
 
-# Create session with orchestrator pane — pass initial prompt via -p flag
-tmux new-session -d -s "$SESSION" -c "$REPO_ROOT" \
-  "claude --dangerously-skip-permissions -p '${INIT_PROMPT}'"
+# Split into 4 panes (2x2 grid)
+tmux split-window -h -t "$SESSION:0.0" -c "$WORKTREES/core"
+tmux split-window -v -t "$SESSION:0.0" -c "$WORKTREES/systems"
+tmux split-window -v -t "$SESSION:0.1" -c "$WORKTREES/ui"
 
-echo "[launch] Orchestrator pane started with claude --dangerously-skip-permissions"
-echo "[launch] Agent teams will create additional panes automatically."
+# Launch Claude in each pane (interactive, no -p flag)
+tmux send-keys -t "$SESSION:0.0" "claude --dangerously-skip-permissions" Enter
+tmux send-keys -t "$SESSION:0.1" "claude --dangerously-skip-permissions" Enter
+tmux send-keys -t "$SESSION:0.2" "claude --dangerously-skip-permissions" Enter
+tmux send-keys -t "$SESSION:0.3" "claude --dangerously-skip-permissions" Enter
+
+echo "[launch] 4 Claude sessions started:"
+echo "  Pane 0: Orchestrator (repo root)"
+echo "  Pane 1: Core team ($WORKTREES/core)"
+echo "  Pane 2: Systems team ($WORKTREES/systems)"
+echo "  Pane 3: UI team ($WORKTREES/ui)"
 echo ""
 echo "Attach with: tmux attach -t $SESSION"

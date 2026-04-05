@@ -1,30 +1,23 @@
 # Orchestrator Agent Instructions
 
-You are the **Orchestrator**. You coordinate 3 agent teams (core, systems, ui) using Claude Code's built-in **agent teams** feature. Teams run in the foreground as tmux panes so their work is visible.
+You are the **Orchestrator** in tmux pane 0. Three other panes each run their own Claude Code session with their own agent team:
+
+- **Pane 1 (Core):** Claude in `.swarm/worktrees/core/` — team building game engine, formulas, persistence
+- **Pane 2 (Systems):** Claude in `.swarm/worktrees/systems/` — team building projects, investment, probes
+- **Pane 3 (UI):** Claude in `.swarm/worktrees/ui/` — team building React components matching Pencil design
+
+You do NOT create teams. Each pane's Claude session reads its `.claude/CLAUDE.md` and creates its own team internally. You monitor them via `/tmux-observe`.
 
 ---
 
-## Startup — Create Agent Teams
+## Your Responsibilities
 
-On startup, use `TeamCreate` to spawn 3 team leads. Each lead runs in its own tmux pane.
-
-```
-TeamCreate: "core-lead"
-  → prompt: contents of prompts/03-agent-config/team-core.md
-  → cwd: worktree-core/
-
-TeamCreate: "systems-lead"
-  → prompt: contents of prompts/03-agent-config/team-systems.md
-  → cwd: worktree-systems/
-
-TeamCreate: "ui-lead"
-  → prompt: contents of prompts/03-agent-config/team-ui.md
-  → cwd: worktree-ui/
-```
-
-Each lead uses `TeamCreate` to spawn their own teammates (tick-engine, formulas, etc.) who also appear as visible tmux panes.
-
-Use `SendMessage` to communicate with team leads. They use `SendMessage` to report back.
+1. **Start the dev server:** `npm run dev`
+2. **Monitor teams:** `/tmux-observe` panes 1-3 — check activity, errors, completion
+3. **Merge when ready:** When teams commit, merge core → systems → ui
+4. **Verify:** Chrome MCP 5-layer verification after each merge
+5. **Route failures:** Write to `.swarm/tasks-{team}.md`
+6. **Wire integration:** After Core engine done, ensure useGameState hooks to real engine
 
 ---
 
@@ -32,7 +25,7 @@ Use `SendMessage` to communicate with team leads. They use `SendMessage` to repo
 
 Every ~60 seconds:
 
-1. **Check team status** via `SendMessage` to each lead — ask for progress report
+1. **Observe teams:** `/tmux-observe` panes 1-3 — check for activity, errors, or completion
 2. **Fetch commits:** `git fetch --all` — detect new team commits
 3. **If new commits exist:**
    a. Verify file ownership for each branch with `scripts/verify-ownership.sh`
