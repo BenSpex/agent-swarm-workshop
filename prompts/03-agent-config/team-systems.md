@@ -117,6 +117,51 @@ The probe system is the most complex subsystem. Get it right:
 
 9. **probeLosses** (bigint): Track total probes lost in combat. Increment whenever probes are destroyed by drifters.
 
+## Barrel Export Contract (CRITICAL — Run 9 had 3 dead subsystems)
+
+You MUST create `src/systems/index.ts` as a barrel re-export of ALL updaters and project functions. Without this barrel, Core cannot import your code and **it becomes dead code**. In Run 9, three subsystems (trust, stratModeling, wireBuyer) were built but never called because there was no barrel.
+
+```typescript
+// src/systems/index.ts — MANDATORY, create this file
+export { updateInvestment } from './investment';
+export { updateCreativity } from './quantum';
+export { checkTrustMilestone } from './trust';
+export { updateStratModeling } from './stratModeling';
+export { updateWireBuyer } from './wireBuyer';
+export { updateMatter } from './matter';
+export { updateSwarm } from './swarm';
+export { updateProbes } from './probes';
+export { getAllProjects, getAvailableProjects, getProjectById, getPurchasedProjects } from './projects';
+```
+
+| File | Export | Called By |
+|------|--------|-----------|
+| investment.ts | `updateInvestment` | Core tickHandler step 6 |
+| quantum.ts | `updateCreativity` | Core tickHandler step 7 |
+| stratModeling.ts | `updateStratModeling` | Core tickHandler step 8 |
+| trust.ts | `checkTrustMilestone` | Core tickHandler step 9 |
+| wireBuyer.ts | `updateWireBuyer` | Core tickHandler step 4 |
+| matter.ts | `updateMatter` | Core tickHandler step 11 |
+| swarm.ts | `updateSwarm` | Core tickHandler step 12 |
+| probes.ts | `updateProbes` | Core tickHandler step 13 |
+| projects/index.ts | `getAllProjects` | Core registerProjects() |
+| projects/index.ts | `getAvailableProjects` | UI ProjectList.tsx |
+
+**Pre-commit check:** `grep -c 'export' src/systems/index.ts` must return >= 12. Missing = **do not commit.**
+
+---
+
+## Integration Readiness Tests (MANDATORY before commit)
+
+The systems-tester MUST verify before any commit:
+
+1. **All 12 exports exist:** `npx tsc --noEmit` passes with barrel imports
+2. **Projects are queryable:** `getAvailableProjects(createInitialState())` returns >= 3 projects (not empty)
+3. **No state mutation:** Each updater returns a NEW state object (`input !== output` or deep equality check)
+4. **All effects return valid shape:** Every project effect returns an object with all required GameState fields
+
+---
+
 **projects-p2p3 must know:**
 - Follow the same pattern as Phase 1 projects
 - Phase 2 projects deal with infrastructure (drones, factories, solar, momentum)

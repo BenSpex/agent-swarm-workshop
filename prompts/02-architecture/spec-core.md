@@ -292,9 +292,12 @@ The TICK reducer calls subsystem updaters in this deterministic order:
 8. **Strategic modeling** — auto-tournament if enabled (every 50 ticks)
 9. **Trust milestones** — award trust at clip thresholds
 10. **Operations generation** — processors generate ops up to maxOperations
-11. **Phase 2 subsystems** — drones, factories, power, matter, swarm (if phase >= 2)
-12. **Phase 3 subsystems** — probes, exploration, combat (if phase >= 3)
-13. **Derived metrics** — update clipsPerSecond, revenuePerSecond, clipsSoldPerSecond
+11. **Phase transitions** (MANDATORY — Core's job, NOT optional):
+    - If `phase === BUSINESS && flags.spaceTravelUnlocked` → set `phase = EARTH`, `flags.phase2Unlocked = true`, `harvesterDrones = 10`, log message
+    - If `phase === EARTH && flags.phase3Unlocked` → set `phase = UNIVERSE`, log message
+12. **Phase 2 subsystems** — drones, factories, power, matter, swarm (if phase >= 2)
+13. **Phase 3 subsystems** — probes, exploration, combat (if phase >= 3)
+14. **Derived metrics** — update clipsPerSecond, revenuePerSecond, clipsSoldPerSecond
 
 ---
 
@@ -320,14 +323,43 @@ const PROBE_STAT_MAP: Record<ProbeStat, keyof GameState> = {
 
 ---
 
+## BigInt Revenue Safety (CRITICAL)
+
+The `calculateRevenue` function MUST NOT overflow when clipsSold exceeds 2^53:
+
+```typescript
+// BANNED: Number(clipsSold) * price — overflows silently
+// REQUIRED:
+export function calculateRevenue(clipsSold: bigint, price: number): number {
+  const safeSold = clipsSold > BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number.MAX_SAFE_INTEGER
+    : Number(clipsSold);
+  return safeSold * price;
+}
+```
+
+Required test: `calculateRevenue(BigInt(10**18), 0.25)` must return a finite number, not NaN or Infinity.
+
+---
+
 ## Test Strategy
 
 Run tests with: `npx vitest run tests/core/`
 
 Required test files:
-- `tests/core/formulas.test.ts` -- unit tests for every formula
+- `tests/core/formulas.test.ts` -- unit tests for every formula + BigInt overflow in calculateRevenue
 - `tests/core/engine.test.ts` -- dispatch, subscribe, tick cycle
 - `tests/core/save.test.ts` -- BigInt round-trip, Set round-trip, full state serialization
+- `tests/core/transitions.test.ts` -- phase transition BUSINESS→EARTH and EARTH→UNIVERSE
+
+### Mandatory Test Cases (MUST exist before commit)
+
+- Phase transition: dispatch BUY_PROJECT for space_exploration, tick, verify phase=2 and harvesterDrones=10
+- Phase transition: set phase3Unlocked, tick, verify phase=3
+- Wire buyer: set wireBuyerEnabled=true, wire=5, tick, verify wire increases
+- Rolling window: run 20 ticks with autoclippers, verify clipsPerSecond > 0
+- BigInt overflow: calculateRevenue(BigInt(10**18), 0.25) returns finite number
+- Subsystem calls: grep src/core/tickHandler.ts for at least 5 imports from src/systems/
 
 ---
 

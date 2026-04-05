@@ -63,6 +63,57 @@ If any step fails, stop and route the error to the responsible team via `.swarm/
 
 ---
 
+## Post-Merge Integration Checklist (MANDATORY — Run 9 required 4 manual fixes)
+
+After merging all 3 branches and before Chrome MCP verification, run these checks. Fix any failures BEFORE starting dev server.
+
+### 1. Subsystem imports in tickHandler
+```bash
+grep -c "from.*src/systems" src/core/tickHandler.ts
+# Must be >= 5. If less, Core team duplicated subsystem logic inline.
+# FIX: Replace inline logic with imports from src/systems/
+```
+
+### 2. Phase transition logic exists
+```bash
+grep "spaceTravelUnlocked" src/core/tickHandler.ts
+# Must match. If not, add phase transition detection in TICK handler.
+```
+
+### 3. ProjectList uses real project data (NOT hardcoded mock)
+```bash
+grep -n "const.*projects.*=.*\[" src/components/ProjectList.tsx
+# Must NOT match. If it does, replace with import { getAvailableProjects } from '../systems/projects'
+```
+
+### 4. All required data-testids
+```bash
+grep -r "data-testid" src/components/ | grep -oP 'data-testid="[^"]*"' | sort -u | wc -l
+# Must be >= 20. Check specifically for: metrics-ledger, autoclipper-panel, nav-sidebar
+```
+
+### 5. Engine hook pattern
+```bash
+grep "useSyncExternalStore\|useState.*engine\|subscribe.*setState" src/hooks/useGameState.ts
+# Should use useSyncExternalStore. If uses useState+subscribe, fix to prevent stale renders.
+# Also verify: grep "__engine" src/hooks/useGameState.ts — must expose for Chrome MCP testing
+```
+
+### 6. formatMoney precision for prices
+```bash
+grep "formatPrice\|toFixed(2)" src/components/BusinessPanel.tsx
+# Price display should use 2 decimal places, not formatMoney (which rounds to 1 decimal)
+```
+
+### 7. Full validation
+```bash
+npx tsc --noEmit && npx vitest run
+```
+
+Fix ALL issues before starting the dev server and Chrome MCP verification.
+
+---
+
 ## Chrome MCP 5-Layer Verification
 
 **IMPORTANT:** Navigate to the page FIRST, wait 2s, THEN run checks. `read_console_messages` may need a page reload to attach.

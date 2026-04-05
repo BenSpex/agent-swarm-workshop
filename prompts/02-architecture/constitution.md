@@ -35,6 +35,16 @@ Every React component that renders game state MUST have a `data-testid` attribut
 ### Article 9: Context Checkpoints
 Before a context reset, every agent writes a structured checkpoint to `.swarm/checkpoints/{agent-name}.md`. After reset: read checkpoint first, then spec, then continue. Never reset mid-implementation -- finish or commit current work first. See checkpoint format below.
 
+### Article 10: Integration Contracts (added Run 10 — prevents dead code + mock data)
+
+Three cross-team integration contracts are law. Violation = orchestrator overwrites your code during merge.
+
+1. **Systems → Core (Subsystem Imports):** All subsystem tick updaters (`updateInvestment`, `updateCreativity`, `checkTrustMilestone`, `updateStratModeling`, `updateWireBuyer`, `updateMatter`, `updateSwarm`, `updateProbes`) MUST be exported from `src/systems/index.ts` barrel. Core's tickHandler MUST import and call them — no inline duplication of subsystem logic.
+
+2. **Systems → UI (Project Data):** `getAvailableProjects(state)` from `src/systems/projects/` is the ONLY source of project data for the UI. The UI MUST NOT hardcode project arrays. `createMockState()` is for GameState shape only, NOT for project lists.
+
+3. **Core → UI (Engine Factory):** `createEngine()` from `src/core/` is the ONLY engine factory. The UI hooks into it via `useSyncExternalStore(engine.subscribe, engine.getState)` — NOT via `useState` + `subscribe` (causes stale renders with 100ms tick).
+
 ---
 
 ## Checkpoint Format

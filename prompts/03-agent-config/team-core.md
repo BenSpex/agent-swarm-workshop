@@ -166,6 +166,93 @@ The TICK reducer MUST import and call subsystem tick updaters from `src/systems/
 - `updateProbes(state)` from `src/systems/probes.ts`
 - `updateStratModeling(state)` from `src/systems/stratModeling.ts`
 
+## Anti-Duplication Firewall (CRITICAL — Runs 4-9 all failed this)
+
+The tick-engine agent MUST NOT write inline implementations of subsystem logic. These subsystems are built by the Systems team in `src/systems/`:
+
+| Logic | MUST import from | MUST NOT inline |
+|-------|-----------------|-----------------|
+| Wire buyer auto-purchase | `src/systems/wireBuyer.ts` | Any `wireBuyerEnabled` check in tickHandler |
+| Trust milestones | `src/systems/trust.ts` | Any milestone array or trust calculation in tickHandler |
+| Strategic modeling | `src/systems/stratModeling.ts` | Any `Math.random()` or payoff matrix in tickHandler |
+| Investment returns | `src/systems/investment.ts` | Any portfolio calculation in tickHandler |
+| Creativity generation | `src/systems/quantum.ts` | Any creativity increment in tickHandler |
+| Matter harvesting | `src/systems/matter.ts` | Any harvester/factory logic in tickHandler |
+| Swarm computing | `src/systems/swarm.ts` | Any momentum/gift logic in tickHandler |
+| Probe mechanics | `src/systems/probes.ts` | Any exploration/combat logic in tickHandler |
+
+**If Systems files don't exist yet** (because Systems team hasn't committed), write a NO-OP stub:
+```typescript
+// STUB: Systems team delivers — DO NOT IMPLEMENT INLINE
+function updateWireBuyer(state: GameState): GameState { return state; }
+```
+
+**Core-reviewer pre-commit check:** `grep -rn "Math.random\|wireBuyerEnabled\|trustMilestone\|PAYOFF\|returnRate.*risk" src/core/tickHandler.ts` — ANY match = **Grade F, reject immediately.**
+
+---
+
+## Phase Transition Logic (MANDATORY — Core's responsibility)
+
+The tickHandler MUST detect phase-transition flags and change the phase. This is NOT optional and NOT the Systems team's job:
+
+```typescript
+// In tickHandler, AFTER operations generation, BEFORE subsystem calls:
+if (s.phase === GamePhase.BUSINESS && s.flags.spaceTravelUnlocked) {
+  s = { ...s, phase: GamePhase.EARTH, flags: { ...s.flags, phase2Unlocked: true },
+    harvesterDrones: 10,
+    messages: ['>>> PHASE 2: EARTH OPERATIONS <<<', ...s.messages].slice(0, 50) };
+}
+if (s.phase === GamePhase.EARTH && s.flags.phase3Unlocked) {
+  s = { ...s, phase: GamePhase.UNIVERSE,
+    messages: ['>>> PHASE 3: GALACTIC EXPANSION <<<', ...s.messages].slice(0, 50) };
+}
+```
+
+**Core-reviewer pre-commit check:** `grep "spaceTravelUnlocked" src/core/tickHandler.ts` — MUST match. No match = **Grade F.**
+
+---
+
+## BigInt Revenue Safety
+
+The `calculateRevenue` function MUST handle BigInt overflow:
+
+```typescript
+// BANNED pattern:
+return Number(clipsSold) * price;  // OVERFLOWS when clipsSold > 2^53
+
+// REQUIRED pattern:
+export function calculateRevenue(clipsSold: bigint, price: number): number {
+  const safeSold = clipsSold > BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number.MAX_SAFE_INTEGER
+    : Number(clipsSold);
+  return safeSold * price;
+}
+```
+
+**Required test:** `calculateRevenue(BigInt(10**18), 0.25)` must not return NaN or Infinity.
+
+---
+
+## Tick Order Enforcement
+
+The 13-step tick order in `spec-core.md` is authoritative. Investment is step 6, Creativity is step 7. Run 9 had these swapped. The core-reviewer MUST verify the order matches the spec before approving any commit.
+
+---
+
+## Required Test Checklist (MUST exist before committing)
+
+These test cases are mandatory. Missing any = Grade B at best:
+
+- [ ] Phase transition BUSINESS→EARTH: verify `phase === 2`, `harvesterDrones === 10`, messages include phase announcement
+- [ ] Phase transition EARTH→UNIVERSE: verify `phase === 3`, messages include phase announcement
+- [ ] Wire buyer auto-purchase in TICK: set `wireBuyerEnabled=true, wire=5`, tick, verify wire increases
+- [ ] Rolling window metrics: run 20 ticks with autoclippers, verify `clipsPerSecond > 0`
+- [ ] BigInt overflow: `calculateRevenue(BigInt(10**18), 0.25)` returns a finite number
+- [ ] Save/load round-trip: save state with BigInt clips + Set purchasedProjectIds, load, verify equality
+- [ ] All 8 subsystem imports: `grep "from.*src/systems" src/core/tickHandler.ts | wc -l` must be >= 5
+
+---
+
 ## Coordination Rules
 
 - Read the full spec before assigning any work: `prompts/02-architecture/spec-core.md`

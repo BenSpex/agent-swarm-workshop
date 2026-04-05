@@ -35,6 +35,12 @@ for team in "${TEAMS[@]}"; do
   fi
 done
 
+# Backup orchestrator CLAUDE.md so team merges don't clobber it
+if [ -f "$REPO_ROOT/.claude/CLAUDE.md" ]; then
+  cp "$REPO_ROOT/.claude/CLAUDE.md" "$REPO_ROOT/.claude/CLAUDE.md.orchestrator-backup"
+  echo "[setup] Backed up orchestrator CLAUDE.md"
+fi
+
 # Copy team-specific CLAUDE.md into each worktree
 # Each worktree gets: team spawn prompt as its CLAUDE.md (so Claude auto-reads it)
 for team in "${TEAMS[@]}"; do

@@ -6,6 +6,29 @@ You are the **UI team lead**. You run in your own Claude Code session in `.swarm
 
 **Extra responsibility:** Your design-enforcer agent verifies every component against the Pencil spec using Chrome MCP before you commit.
 
+## MOCK DATA BAN (CRITICAL — failed in Runs 4, 8, AND 9)
+
+**ProjectList MUST import `getAvailableProjects()` from `src/systems/projects/`.** NEVER create a hardcoded project array. This has caused integration failures in 3 consecutive runs.
+
+```typescript
+// BANNED (Grade F — immediate reject):
+const mockProjects = [{ id: 'autoclipper_1', name: 'AutoClippers', ... }];
+
+// REQUIRED:
+import { getAvailableProjects } from '../systems/projects';
+const availableProjects = getAvailableProjects(state);
+```
+
+**If Systems files don't exist yet** (because Systems team hasn't committed), create a stub:
+```typescript
+// STUB — returns empty array until Systems team delivers
+function getAvailableProjects(_state: GameState): ProjectDefinition[] { return []; }
+```
+
+**Design-enforcer pre-commit check:** `grep -n "const.*projects.*=.*\[" src/components/ProjectList.tsx` — ANY match = **Grade F, reject immediately.** Also check for `mockProjects`, `MOCK_PROJECTS`, or any inline project data.
+
+---
+
 ## Team
 
 | Field | Value |
@@ -123,6 +146,8 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 - Gold accent (#D4A843) for buy buttons and CTAs (NOT #DAA520)
 - New components: ManufacturingPanel, BusinessPanel, ManufacturingControls, ComputingPanel, StratModelingPanel
 - Display: clips/sec, unsold inventory, revenue/sec, wire buyer toggle, yomi
+- **Price display MUST show 2 decimal places** (not 1). Create a `formatPrice(n: number): string` helper that returns `'$' + n.toFixed(2)`. Use it for `data-testid="price-display"` specifically. The default `formatMoney()` rounds $0.25 to "$0.3" — this is wrong for prices.
+- **InvestmentPanel**: deposit/withdraw amounts should use an input or stepper, NOT hardcode `amount: 1000`
 
 **components-p2p3 must know:**
 - Same patterns as Phase 1 components
@@ -161,11 +186,25 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Phase 3: "Galactic Expansion" is active
    - Use `data-active="true"` or `.active` class on the current phase item
 
-5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below:
-   - Phase 1: Stacked panels — Manufacturing, Business (pricing/marketing/wire buyer), Computing (ops/memory/creativity), Strategic Modeling, Projects, Activity Log.
-   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid, Matter) appear prominently. P1 panels collapse or move to secondary section.
-   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) dominate. Earlier panels collapse.
-   - The page title changes (TERMINAL ALPHA -> EARTH OPERATIONS -> GALACTIC EXPANSION) — layout reinforces the shift.
+5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below. Create a `LeftColumn` component that returns DIFFERENT panel arrangements per phase:
+
+   ```tsx
+   // WRONG (just stacking — Run 9 did this):
+   <ManufacturingPanel />
+   <BusinessPanel />
+   {phase >= 2 && <DronePanel />}
+   {phase >= 3 && <ProbePanel />}
+
+   // RIGHT (reorganize per phase):
+   if (phase === BUSINESS) return <>{P1 panels in prominent order}</>
+   if (phase === EARTH) return <>{P2 panels first, then collapsed P1}</>
+   if (phase === UNIVERSE) return <>{P3 panels first, then collapsed P1+P2}</>
+   ```
+
+   - Phase 1: Left = Manufacturing + Business + ManufacturingControls. Right = Computing + Projects + ActivityLog.
+   - Phase 2: Left = DronePanel + FactoryPanel + PowerPanel + MatterPanel (PROMINENT). Right = condensed P1 + Projects.
+   - Phase 3: Left = ProbePanel + ProbeStatsPanel + Exploration + Combat (DOMINANT). Right = condensed earlier + Projects.
+   - The page title changes (TERMINAL ALPHA → EARTH OPERATIONS → GALACTIC EXPANSION).
 
 6. **Component data-testids (all required):**
    - `manufacturing-panel` — clip button + clips/sec display + unsold inventory
@@ -185,6 +224,8 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - `exploration-display` — sectors explored, drifter count (Phase 3)
    - `combat-display` — honor, combat results (Phase 3)
    - `nav-sidebar` — navigation sidebar
+   - `metrics-ledger` — summary bar showing key metrics (clips, funds, wire count) visible in all phases
+   - `autoclipper-panel` — MUST be this exact testid on the autoclipper/megaclipper buy section (NOT "manufacturing-controls")
 
 7. **Key Metrics to Display:**
    - Clips per second (`clipsPerSecond` from state)
@@ -198,6 +239,27 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 9. **SIDEBAR SCROLLING:** NavSidebar must have `max-height: 100vh` and `overflow-y: auto` so it scrolls independently when the main content is longer. Clicking a nav item should call `scrollIntoView({ behavior: 'smooth' })` on the corresponding section in the main content.
 
 Reference image: `images/image.png` in repo root shows the target design with sidebar.
+
+## React Engine Hook Pattern (CRITICAL — Run 9 had stale renders)
+
+The `useGameState` hook MUST use `useSyncExternalStore` — NOT `useState` + `subscribe`. The 100ms tick loop causes React to batch renders incorrectly with useState, making ProjectList not update after purchases.
+
+```typescript
+// WRONG (Run 9 bug — stale renders):
+const [state, setState] = useState(engine.getState());
+useEffect(() => engine.subscribe(s => setState(s)), []);
+
+// RIGHT:
+import { useSyncExternalStore } from 'react';
+const state = useSyncExternalStore(engine.subscribe, engine.getState);
+```
+
+Also expose the engine globally for Chrome MCP testing:
+```typescript
+(window as any).__engine = engineInstance;
+```
+
+---
 
 ## Chrome MCP Verification (What the Orchestrator Checks)
 
