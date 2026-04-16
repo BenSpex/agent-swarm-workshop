@@ -15,6 +15,70 @@ You are the **Core team lead**. You run in your own Claude Code session in `.swa
 | Constitution | `prompts/02-architecture/constitution.md` |
 | Contracts | `prompts/02-architecture/contracts.ts` |
 
+## Mandatory Tick Handler Contents (Run 13 fix — Run 11 missed this)
+
+Your `stepTick` / `tickReducer` MUST contain these 3 blocks. **Run 11 Core team shipped a tick handler that compiled, ran, but never advanced phases — orchestrator added the missing blocks post-merge.** This is now a Grade-F violation.
+
+### Block A: Phase 1 → 2 transition (BEFORE subsystem calls)
+```typescript
+if (s.phase === 1 && s.flags.spaceTravelUnlocked) {
+  s = {
+    ...s,
+    phase: 2,
+    flags: { ...s.flags, phase2Unlocked: true },
+    harvesterDrones: Math.max(s.harvesterDrones, 10),
+    messages: ['>>> PHASE 2: EARTH OPERATIONS <<<', ...s.messages].slice(0, 50),
+  };
+}
+```
+
+### Block B: Phase 2 → 3 transition
+```typescript
+if (s.phase === 2 && s.flags.phase3Unlocked) {
+  s = {
+    ...s,
+    phase: 3,
+    messages: ['>>> PHASE 3: GALACTIC EXPANSION <<<', ...s.messages].slice(0, 50),
+  };
+}
+```
+
+### Block C: Subsystem updaters imported from `'../systems'`
+The Systems team ships `src/systems/index.ts` as Commit #0 (their barrel). Import all 8 updaters from the barrel — never inline.
+
+```typescript
+import {
+  updateWireBuyer, updateInvestment, updateCreativity, checkTrustMilestone,
+  updateMatter, updateSwarm, updateProbes, updateStratModeling,
+} from '../systems';
+```
+
+### `BUY_PROJECT` action handler
+Run 11 Core left BUY_PROJECT as a TODO-INTEGRATION no-op. Implement it properly using `getProjectById` from systems:
+
+```typescript
+case 'BUY_PROJECT': {
+  const def = getProjectById(action.projectId);
+  if (!def || !def.isAvailable(state)) return state;
+  if (state.purchasedProjectIds.has(action.projectId)) return state;
+  const c = def.cost;
+  // ...check affordability for ops/creativity/funds/trust/yomi/honor...
+  let next = { ...state, /* deduct costs */, purchasedProjectIds: new Set([...state.purchasedProjectIds, action.projectId]) };
+  return def.effect(next);
+}
+```
+
+### Core-reviewer pre-commit checks (block commit if any fail)
+```bash
+grep -c "spaceTravelUnlocked\|phase3Unlocked" src/core/tickHandler.ts | awk '{exit ($1<2)}' || { echo "FAIL: phase transition blocks missing"; exit 1; }
+grep -c "from.*'\.\./systems'" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: ../systems import missing"; exit 1; }
+grep -c "getProjectById" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: BUY_PROJECT not implemented via getProjectById"; exit 1; }
+```
+
+If Systems hasn't shipped Commit #0 yet, use the TODO-INTEGRATION protocol (inline identity functions with `// TODO-INTEGRATION` markers) — but the orchestrator's pre-merge gate will reject the merge until you replace them with real imports.
+
+---
+
 ## Your Agent Team (spawn with TeamCreate + Agent tool)
 
 | Name | Files | Personality |
@@ -218,4 +282,48 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Run 10 Core team shipped `src/core/subsystemStubs.ts` with identity functions for every subsystem, because Systems hadn't merged yet. Those stubs survived into `scaffold` and the Systems team's real work became dead code. **This is now a Grade-F violation.**
+
+**If `../systems/wireBuyer` etc. don't exist yet at your build time:**
+
+1. Prefer `import type` — most of the time `tickHandler` only needs types, not runtime.
+2. If you MUST call a stub, write it **inline** in `tickHandler.ts`, NOT in a separate file:
+   ```typescript
+   // TODO-INTEGRATION: ../systems/wireBuyer not shipped yet — identity for now
+   const updateWireBuyer = (s: GameState): GameState => s;
+   ```
+3. **Do not create:** `src/core/subsystemStubs.ts`, `src/core/projectRegistry.ts` (with local Map), or any file matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/core/`. Orchestrator's pre-merge `scripts/verify-ownership.sh` rejects these.
+4. **Do not populate** a local registry with a local `Map` / `Set` — `findProject` should delegate to `getProjectById` from `'../systems'`. If Systems isn't ready, the file simply shouldn't exist yet; let the Core build fail loudly until Systems ships, then import directly.
+
+**Pre-commit grep Core-reviewer MUST run:**
+```bash
+grep -rn "TODO-INTEGRATION" src/core/    # must list ZERO or only clearly-justified lines
+find src/core/ -name '*[Ss]tub.ts' -o -name '*[Mm]ock.ts'  # must be empty
+```
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"core","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+The orchestrator parses this file at close-out to write the next post-mortem. If you skip logging, the team's decisions vanish and Run 12 won't know what went wrong.
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-core.md`. The orchestrator appends routed failures there (format: `## {timestamp} — {layer} FAIL: {short}` + diagnostics + fix hint). Address any unresolved entry before starting new work.
+
+## Dev Server Contract (Run 13: applied to all 3 teams)
+
+The dev server is the orchestrator's job, not yours. Team-lead Claude sandboxes can't keep `npm run dev` alive — sandbox kills background processes after a short timeout.
+
+**Rules:**
+1. Do NOT try to `npm run dev` yourself.
+2. Before any Chrome MCP verification, `curl -sS -o /dev/null -w "%{http_code}" http://localhost:5173/` with a 60-second timeout.
+3. If the server is not 200 within 60s, append `DEV_SERVER_DOWN — core verification blocked` to `.swarm/tasks-orchestrator.md` and proceed with non-browser verification (vitest + tsc) only. Do NOT block your commits on browser verification.

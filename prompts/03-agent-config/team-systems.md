@@ -15,6 +15,39 @@ You are the **Systems team lead**. You run in your own Claude Code session in `.
 | Constitution | `prompts/02-architecture/constitution.md` |
 | Contracts | `prompts/02-architecture/contracts.ts` |
 
+## Commit #0 — `src/systems/index.ts` Barrel (MANDATORY, Run 13 fix)
+
+**Run 11 systems team did not ship the barrel; orchestrator created it post-merge.** This is now a Grade-F violation. Your team-lead's FIRST commit (before any project file or subsystem ships) is `src/systems/index.ts` exporting at least these 12 symbols:
+
+```typescript
+// src/systems/index.ts — MUST be your team's first commit (Commit #0)
+export { updateInvestment } from './investment';
+export { updateCreativity } from './quantum';
+export { checkTrustMilestone } from './trust';
+export { updateStratModeling, resolveRound } from './stratModeling';
+export { updateWireBuyer } from './wireBuyer';
+export { updateMatter } from './matter';
+export { updateSwarm } from './swarm';
+export { updateProbes } from './probes';
+export {
+  getAllProjects,
+  getAvailableProjects,
+  getProjectById,
+  getPurchasedProjects,
+} from './projects';
+```
+
+**systems-tester's pre-commit invariant** (block any subsequent commit if this fails):
+```bash
+test -f src/systems/index.ts && \
+  [ "$(grep -c '^export' src/systems/index.ts)" -ge 12 ] || \
+  { echo "Barrel missing or incomplete — Commit #0 not done"; exit 1; }
+```
+
+The actual subsystem `.ts` files can be empty stubs in Commit #0 (just enough to satisfy the imports). Real implementations come in Commits #1+. The barrel's job is to give Core/UI a stable import surface from minute 0.
+
+---
+
 ## Your Agent Team (spawn with TeamCreate + Agent tool)
 
 | Name | Files | Personality |
@@ -176,4 +209,33 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/systems/*`. Reading `src/shared/*` is allowed. Any edit outside `src/systems/` is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/systems/*`. Reading `src/shared/*` is allowed. Any edit outside `src/systems/` is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Systems is usually the producer of deps that Core and UI consume. You rarely need stubs yourself, but:
+- **Never create `src/systems/*Stub.ts` or `src/systems/*Mock.ts`.**
+- Your barrel `src/systems/index.ts` must export REAL implementations — Core and UI import from `'../systems'` and will get whatever you ship. If your impl returns an empty array or a no-op by design, that is STILL a real impl, not a stub.
+- **Do not** lazy-initialize your own project registry; `getAllProjects` / `getAvailableProjects` / `getProjectById` live in `src/systems/projects/index.ts` and are pure functions over state. No singletons.
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"systems","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-systems.md`. Address any unresolved orchestrator-routed failure before starting new work.
+
+## Dev Server Contract (Run 13: applied to all 3 teams)
+
+The dev server is the orchestrator's job, not yours. Team-lead Claude sandboxes can't keep `npm run dev` alive — sandbox kills background processes after a short timeout.
+
+**Rules:**
+1. Do NOT try to `npm run dev` yourself.
+2. Before any Chrome MCP verification, `curl -sS -o /dev/null -w "%{http_code}" http://localhost:5173/` with a 60-second timeout.
+3. If the server is not 200 within 60s, append `DEV_SERVER_DOWN — systems verification blocked` to `.swarm/tasks-orchestrator.md` and proceed with non-browser verification (vitest + tsc) only. Do NOT block your commits on browser verification.
