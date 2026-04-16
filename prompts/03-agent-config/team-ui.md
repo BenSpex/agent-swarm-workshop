@@ -6,29 +6,6 @@ You are the **UI team lead**. You run in your own Claude Code session in `.swarm
 
 **Extra responsibility:** Your design-enforcer agent verifies every component against the Pencil spec using Chrome MCP before you commit.
 
-## MOCK DATA BAN (CRITICAL — failed in Runs 4, 8, AND 9)
-
-**ProjectList MUST import `getAvailableProjects()` from `src/systems/projects/`.** NEVER create a hardcoded project array. This has caused integration failures in 3 consecutive runs.
-
-```typescript
-// BANNED (Grade F — immediate reject):
-const mockProjects = [{ id: 'autoclipper_1', name: 'AutoClippers', ... }];
-
-// REQUIRED:
-import { getAvailableProjects } from '../systems/projects';
-const availableProjects = getAvailableProjects(state);
-```
-
-**If Systems files don't exist yet** (because Systems team hasn't committed), create a stub:
-```typescript
-// STUB — returns empty array until Systems team delivers
-function getAvailableProjects(_state: GameState): ProjectDefinition[] { return []; }
-```
-
-**Design-enforcer pre-commit check:** `grep -n "const.*projects.*=.*\[" src/components/ProjectList.tsx` — ANY match = **Grade F, reject immediately.** Also check for `mockProjects`, `MOCK_PROJECTS`, or any inline project data.
-
----
-
 ## Team
 
 | Field | Value |
@@ -146,8 +123,6 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 - Gold accent (#D4A843) for buy buttons and CTAs (NOT #DAA520)
 - New components: ManufacturingPanel, BusinessPanel, ManufacturingControls, ComputingPanel, StratModelingPanel
 - Display: clips/sec, unsold inventory, revenue/sec, wire buyer toggle, yomi
-- **Price display MUST show 2 decimal places** (not 1). Create a `formatPrice(n: number): string` helper that returns `'$' + n.toFixed(2)`. Use it for `data-testid="price-display"` specifically. The default `formatMoney()` rounds $0.25 to "$0.3" — this is wrong for prices.
-- **InvestmentPanel**: deposit/withdraw amounts should use an input or stepper, NOT hardcode `amount: 1000`
 
 **components-p2p3 must know:**
 - Same patterns as Phase 1 components
@@ -186,25 +161,13 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Phase 3: "Galactic Expansion" is active
    - Use `data-active="true"` or `.active` class on the current phase item
 
-5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below. Create a `LeftColumn` component that returns DIFFERENT panel arrangements per phase:
-
-   ```tsx
-   // WRONG (just stacking — Run 9 did this):
-   <ManufacturingPanel />
-   <BusinessPanel />
-   {phase >= 2 && <DronePanel />}
-   {phase >= 3 && <ProbePanel />}
-
-   // RIGHT (reorganize per phase):
-   if (phase === BUSINESS) return <>{P1 panels in prominent order}</>
-   if (phase === EARTH) return <>{P2 panels first, then collapsed P1}</>
-   if (phase === UNIVERSE) return <>{P3 panels first, then collapsed P1+P2}</>
-   ```
-
-   - Phase 1: Left = Manufacturing + Business + ManufacturingControls. Right = Computing + Projects + ActivityLog.
-   - Phase 2: Left = DronePanel + FactoryPanel + PowerPanel + MatterPanel (PROMINENT). Right = condensed P1 + Projects.
-   - Phase 3: Left = ProbePanel + ProbeStatsPanel + Exploration + Combat (DOMINANT). Right = condensed earlier + Projects.
-   - The page title changes (TERMINAL ALPHA → EARTH OPERATIONS → GALACTIC EXPANSION).
+5. **PHASES REORGANIZE VISUALLY, BUT P1 PANELS PERSIST** — the page title changes (TERMINAL ALPHA -> EARTH OPERATIONS -> GALACTIC EXPANSION) and new P2/P3 panels appear prominently, but **P1 panels never disappear**. The OG Universal Paperclips at 14.9M clips still shows Make Paperclip, Manufacturing, Business, AutoClippers, MegaClippers, Investments, Strategic Modeling — all visible and interactive.
+   - Phase 1: Manufacturing, Business (pricing/marketing/wire buyer), ManufacturingControls, Computing, Strategic Modeling, Investments, Projects, Activity Log.
+   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid, Matter) move to left column / prominent position. **Every P1 panel still renders** (possibly compact styling in right column).
+   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) dominate left column. **All P1 AND P2 panels still render**.
+   - **Forbidden pattern:** `{phase === GamePhase.BUSINESS && <ManufacturingPanel />}` — if you wrote a phase-conditional render around ManufacturingPanel / BusinessPanel / ManufacturingControls, you misread the spec. Delete the guard. Render unconditionally.
+   - Run 10 regression: MainGrid.tsx had separate Phase1Grid/Phase2Grid/Phase3Grid components with different panel lists. In Run 11 this is banned — there is ONE grid; phase state only affects panel ordering/styling, never panel presence. Scaffold ships `<PersistentP1Strip />` rendered from App.tsx outside MainGrid as a forcing function; do not remove it.
+   - Chrome MCP L6 (new in Run 11) verifies `clip-button`, `clip-counter`, `autoclipper-panel`, `price-display`, `wire-panel` all resolve in Phase 2 AND Phase 3. Missing any = route-back-to-UI failure.
 
 6. **Component data-testids (all required):**
    - `manufacturing-panel` — clip button + clips/sec display + unsold inventory
@@ -224,8 +187,6 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - `exploration-display` — sectors explored, drifter count (Phase 3)
    - `combat-display` — honor, combat results (Phase 3)
    - `nav-sidebar` — navigation sidebar
-   - `metrics-ledger` — summary bar showing key metrics (clips, funds, wire count) visible in all phases
-   - `autoclipper-panel` — MUST be this exact testid on the autoclipper/megaclipper buy section (NOT "manufacturing-controls")
 
 7. **Key Metrics to Display:**
    - Clips per second (`clipsPerSecond` from state)
@@ -239,27 +200,6 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
 9. **SIDEBAR SCROLLING:** NavSidebar must have `max-height: 100vh` and `overflow-y: auto` so it scrolls independently when the main content is longer. Clicking a nav item should call `scrollIntoView({ behavior: 'smooth' })` on the corresponding section in the main content.
 
 Reference image: `images/image.png` in repo root shows the target design with sidebar.
-
-## React Engine Hook Pattern (CRITICAL — Run 9 had stale renders)
-
-The `useGameState` hook MUST use `useSyncExternalStore` — NOT `useState` + `subscribe`. The 100ms tick loop causes React to batch renders incorrectly with useState, making ProjectList not update after purchases.
-
-```typescript
-// WRONG (Run 9 bug — stale renders):
-const [state, setState] = useState(engine.getState());
-useEffect(() => engine.subscribe(s => setState(s)), []);
-
-// RIGHT:
-import { useSyncExternalStore } from 'react';
-const state = useSyncExternalStore(engine.subscribe, engine.getState);
-```
-
-Also expose the engine globally for Chrome MCP testing:
-```typescript
-(window as any).__engine = engineInstance;
-```
-
----
 
 ## Chrome MCP Verification (What the Orchestrator Checks)
 
@@ -339,4 +279,38 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/components/*`, `src/hooks/*`, `src/styles/*`, `tailwind.config.ts`, `index.html`, and `public/*`. Reading `src/shared/*` is allowed. Any edit outside these directories is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/components/*`, `src/hooks/*`, `src/styles/*`, `src/App.tsx`, `src/main.tsx`, `tailwind.config.ts`, `index.html`, and `public/*`. Reading `src/shared/*` is allowed. Any edit outside these directories is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+**`src/main.tsx` note:** scaffold ships engine bootstrap pre-wired (`createEngine() → load() → start() → window.__engine`). Do NOT remove or rewrite that bootstrap — style or extend only. The scaffold also ships `<PersistentP1Strip />` rendered from `App.tsx` outside `<MainGrid />`. Do NOT remove or relocate it; style it per design.pen.
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Run 10 UI team shipped `src/hooks/projectsStub.ts` returning `[]`, because Systems hadn't merged yet. The stub survived; ProjectList showed "No projects" in every phase. **This is now a Grade-F violation.**
+
+**Rules:**
+1. `ProjectList.tsx` imports `getAvailableProjects` from `'../systems'` ONLY. No `projectsStub`, no `MOCK_PROJECTS`, no local arrays.
+2. `useGameState.ts` reads from `window.__engine` (set by scaffold's main.tsx). If `window.__engine` is undefined in test/SSR, fall back to a `createMockState()` from `src/hooks/mockState.ts` — that mockState file is allowed because it's clearly test-only and never shadows a sibling team's exports.
+3. **Do not create:** files matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/hooks/` except the explicitly-allowed `mockState.ts`. Orchestrator pre-merge rejects others.
+4. If Systems isn't ready: use `import type { ProjectDefinition } from '../shared/projects'` and guard with "Systems not ready" placeholder in the UI (visible to developer, not a silent empty list).
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"ui","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-ui.md`. Address any unresolved orchestrator-routed failure before starting new work.
+
+## Dev Server Contract (Run 11 found this the hard way)
+
+**The dev server is the orchestrator's job, not yours.** Your team-lead Claude session cannot keep a long-lived `npm run dev` process alive — sandbox kills background processes after a short timeout. Run 11 UI lead was blocked for 10+ minutes asking the user to start the dev server.
+
+**Rules:**
+1. Do NOT try to `npm run dev` yourself. The orchestrator starts it before kickoff and keeps it running.
+2. Before any Chrome MCP verification, your design-enforcer should `curl -sS -o /dev/null -w "%{http_code}" http://localhost:5173/` with a 60-second timeout.
+3. If the server is not 200 within 60s, append a single line to `.swarm/tasks-orchestrator.md` with `DEV_SERVER_DOWN — design-enforcer blocked` and **proceed with non-browser verification (vitest + tsc) only**. Do NOT block the commit on browser verification if the server is unavailable. Commit with browser-verification deferred and let the orchestrator do final L1-L6 post-merge.

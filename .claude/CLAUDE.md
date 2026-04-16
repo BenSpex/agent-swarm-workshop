@@ -12,12 +12,12 @@ You do NOT create teams. Each pane's Claude session reads its `.claude/CLAUDE.md
 
 ## Your Responsibilities
 
-1. **Start the dev server:** `npm run dev`
+1. **Start the dev server BEFORE sending kickoff messages.** `kill $(lsof -t -i:5173) 2>/dev/null; cd <repo>; nohup npm run dev > /tmp/vite.log 2>&1 & disown`. Then `curl http://localhost:5173/` returns 200 before you send team kickoffs. Run 11: UI lead blocked 10+ min waiting for this. Team sandboxes can't keep `npm run dev` alive.
 2. **Monitor teams:** `/tmux-observe` panes 1-3 — check activity, errors, completion
 3. **Merge when ready:** When teams commit, merge core → systems → ui
-4. **Verify:** Chrome MCP 5-layer verification after each merge
+4. **Verify:** Chrome MCP 5-layer verification after each merge (now L1-L6, including L6 Persistence)
 5. **Route failures:** Write to `.swarm/tasks-{team}.md`
-6. **Wire integration:** After Core engine done, ensure useGameState hooks to real engine
+6. **Wire integration:** After Core engine done, ensure useGameState hooks to real engine (scaffold v12 ships this pre-wired)
 
 ---
 
@@ -445,3 +445,12 @@ The prompt said "consume probeTrust when incrementing a stat". The agent decreme
 
 ### 12. Reducer Inlined All Subsystem Logic (540 Lines)
 Without explicit instruction to import from `src/systems/`, the Core team inlined all subsystem logic into `reducer.ts`, exceeding the 300-line limit and making the Systems team's files dead code. The spec now explicitly requires importing subsystem tick updaters.
+
+### 13. Systems Barrel Must Be Commit #0 (Run 11)
+Run 11 Systems team built all subsystems and projects but never created `src/systems/index.ts`. Core's `import { ... } from '../systems'` couldn't resolve. Orchestrator created the barrel post-merge. Fix in team-systems.md: barrel is now Commit #0 (must land before any project file). systems-tester pre-commit invariant: `test -f src/systems/index.ts && grep -c '^export' src/systems/index.ts -ge 12`.
+
+### 14. Core Phase Transitions Are Easy to Miss (Run 11)
+Run 11 Core's `tickHandler` compiled, ran, but never advanced phases — the `if (phase === 1 && spaceTravelUnlocked)` block was missing. Spec had it; team didn't see it as mandatory. Fix in team-core.md: "Mandatory Tick Handler Contents" callout at the top of the file with explicit Block A/B/C code. Core-reviewer pre-commit grep: `grep -c "spaceTravelUnlocked\|phase3Unlocked" src/core/tickHandler.ts -ge 2`.
+
+### 15. Dev Server Is the Orchestrator's Job (Run 11)
+Run 11 UI lead got blocked for 10+ minutes asking the user to start `npm run dev` — team-lead Claude sandboxes can't keep long-running processes alive. Orchestrator started the server manually, sent unblock message via tmux send-keys. Fix: orchestrator MUST start `npm run dev` BEFORE sending team kickoff messages. All 3 team prompts now have a "Dev Server Contract" section telling teams to fall through to non-browser verification (vitest + tsc) if `curl localhost:5173` fails after 60s — never block commit on dev server availability.

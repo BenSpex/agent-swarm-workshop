@@ -15,6 +15,70 @@ You are the **Core team lead**. You run in your own Claude Code session in `.swa
 | Constitution | `prompts/02-architecture/constitution.md` |
 | Contracts | `prompts/02-architecture/contracts.ts` |
 
+## Mandatory Tick Handler Contents (Run 13 fix — Run 11 missed this)
+
+Your `stepTick` / `tickReducer` MUST contain these 3 blocks. **Run 11 Core team shipped a tick handler that compiled, ran, but never advanced phases — orchestrator added the missing blocks post-merge.** This is now a Grade-F violation.
+
+### Block A: Phase 1 → 2 transition (BEFORE subsystem calls)
+```typescript
+if (s.phase === 1 && s.flags.spaceTravelUnlocked) {
+  s = {
+    ...s,
+    phase: 2,
+    flags: { ...s.flags, phase2Unlocked: true },
+    harvesterDrones: Math.max(s.harvesterDrones, 10),
+    messages: ['>>> PHASE 2: EARTH OPERATIONS <<<', ...s.messages].slice(0, 50),
+  };
+}
+```
+
+### Block B: Phase 2 → 3 transition
+```typescript
+if (s.phase === 2 && s.flags.phase3Unlocked) {
+  s = {
+    ...s,
+    phase: 3,
+    messages: ['>>> PHASE 3: GALACTIC EXPANSION <<<', ...s.messages].slice(0, 50),
+  };
+}
+```
+
+### Block C: Subsystem updaters imported from `'../systems'`
+The Systems team ships `src/systems/index.ts` as Commit #0 (their barrel). Import all 8 updaters from the barrel — never inline.
+
+```typescript
+import {
+  updateWireBuyer, updateInvestment, updateCreativity, checkTrustMilestone,
+  updateMatter, updateSwarm, updateProbes, updateStratModeling,
+} from '../systems';
+```
+
+### `BUY_PROJECT` action handler
+Run 11 Core left BUY_PROJECT as a TODO-INTEGRATION no-op. Implement it properly using `getProjectById` from systems:
+
+```typescript
+case 'BUY_PROJECT': {
+  const def = getProjectById(action.projectId);
+  if (!def || !def.isAvailable(state)) return state;
+  if (state.purchasedProjectIds.has(action.projectId)) return state;
+  const c = def.cost;
+  // ...check affordability for ops/creativity/funds/trust/yomi/honor...
+  let next = { ...state, /* deduct costs */, purchasedProjectIds: new Set([...state.purchasedProjectIds, action.projectId]) };
+  return def.effect(next);
+}
+```
+
+### Core-reviewer pre-commit checks (block commit if any fail)
+```bash
+grep -c "spaceTravelUnlocked\|phase3Unlocked" src/core/tickHandler.ts | awk '{exit ($1<2)}' || { echo "FAIL: phase transition blocks missing"; exit 1; }
+grep -c "from.*'\.\./systems'" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: ../systems import missing"; exit 1; }
+grep -c "getProjectById" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: BUY_PROJECT not implemented via getProjectById"; exit 1; }
+```
+
+If Systems hasn't shipped Commit #0 yet, use the TODO-INTEGRATION protocol (inline identity functions with `// TODO-INTEGRATION` markers) — but the orchestrator's pre-merge gate will reject the merge until you replace them with real imports.
+
+---
+
 ## Your Agent Team (spawn with TeamCreate + Agent tool)
 
 | Name | Files | Personality |
@@ -166,93 +230,6 @@ The TICK reducer MUST import and call subsystem tick updaters from `src/systems/
 - `updateProbes(state)` from `src/systems/probes.ts`
 - `updateStratModeling(state)` from `src/systems/stratModeling.ts`
 
-## Anti-Duplication Firewall (CRITICAL — Runs 4-9 all failed this)
-
-The tick-engine agent MUST NOT write inline implementations of subsystem logic. These subsystems are built by the Systems team in `src/systems/`:
-
-| Logic | MUST import from | MUST NOT inline |
-|-------|-----------------|-----------------|
-| Wire buyer auto-purchase | `src/systems/wireBuyer.ts` | Any `wireBuyerEnabled` check in tickHandler |
-| Trust milestones | `src/systems/trust.ts` | Any milestone array or trust calculation in tickHandler |
-| Strategic modeling | `src/systems/stratModeling.ts` | Any `Math.random()` or payoff matrix in tickHandler |
-| Investment returns | `src/systems/investment.ts` | Any portfolio calculation in tickHandler |
-| Creativity generation | `src/systems/quantum.ts` | Any creativity increment in tickHandler |
-| Matter harvesting | `src/systems/matter.ts` | Any harvester/factory logic in tickHandler |
-| Swarm computing | `src/systems/swarm.ts` | Any momentum/gift logic in tickHandler |
-| Probe mechanics | `src/systems/probes.ts` | Any exploration/combat logic in tickHandler |
-
-**If Systems files don't exist yet** (because Systems team hasn't committed), write a NO-OP stub:
-```typescript
-// STUB: Systems team delivers — DO NOT IMPLEMENT INLINE
-function updateWireBuyer(state: GameState): GameState { return state; }
-```
-
-**Core-reviewer pre-commit check:** `grep -rn "Math.random\|wireBuyerEnabled\|trustMilestone\|PAYOFF\|returnRate.*risk" src/core/tickHandler.ts` — ANY match = **Grade F, reject immediately.**
-
----
-
-## Phase Transition Logic (MANDATORY — Core's responsibility)
-
-The tickHandler MUST detect phase-transition flags and change the phase. This is NOT optional and NOT the Systems team's job:
-
-```typescript
-// In tickHandler, AFTER operations generation, BEFORE subsystem calls:
-if (s.phase === GamePhase.BUSINESS && s.flags.spaceTravelUnlocked) {
-  s = { ...s, phase: GamePhase.EARTH, flags: { ...s.flags, phase2Unlocked: true },
-    harvesterDrones: 10,
-    messages: ['>>> PHASE 2: EARTH OPERATIONS <<<', ...s.messages].slice(0, 50) };
-}
-if (s.phase === GamePhase.EARTH && s.flags.phase3Unlocked) {
-  s = { ...s, phase: GamePhase.UNIVERSE,
-    messages: ['>>> PHASE 3: GALACTIC EXPANSION <<<', ...s.messages].slice(0, 50) };
-}
-```
-
-**Core-reviewer pre-commit check:** `grep "spaceTravelUnlocked" src/core/tickHandler.ts` — MUST match. No match = **Grade F.**
-
----
-
-## BigInt Revenue Safety
-
-The `calculateRevenue` function MUST handle BigInt overflow:
-
-```typescript
-// BANNED pattern:
-return Number(clipsSold) * price;  // OVERFLOWS when clipsSold > 2^53
-
-// REQUIRED pattern:
-export function calculateRevenue(clipsSold: bigint, price: number): number {
-  const safeSold = clipsSold > BigInt(Number.MAX_SAFE_INTEGER)
-    ? Number.MAX_SAFE_INTEGER
-    : Number(clipsSold);
-  return safeSold * price;
-}
-```
-
-**Required test:** `calculateRevenue(BigInt(10**18), 0.25)` must not return NaN or Infinity.
-
----
-
-## Tick Order Enforcement
-
-The 13-step tick order in `spec-core.md` is authoritative. Investment is step 6, Creativity is step 7. Run 9 had these swapped. The core-reviewer MUST verify the order matches the spec before approving any commit.
-
----
-
-## Required Test Checklist (MUST exist before committing)
-
-These test cases are mandatory. Missing any = Grade B at best:
-
-- [ ] Phase transition BUSINESS→EARTH: verify `phase === 2`, `harvesterDrones === 10`, messages include phase announcement
-- [ ] Phase transition EARTH→UNIVERSE: verify `phase === 3`, messages include phase announcement
-- [ ] Wire buyer auto-purchase in TICK: set `wireBuyerEnabled=true, wire=5`, tick, verify wire increases
-- [ ] Rolling window metrics: run 20 ticks with autoclippers, verify `clipsPerSecond > 0`
-- [ ] BigInt overflow: `calculateRevenue(BigInt(10**18), 0.25)` returns a finite number
-- [ ] Save/load round-trip: save state with BigInt clips + Set purchasedProjectIds, load, verify equality
-- [ ] All 8 subsystem imports: `grep "from.*src/systems" src/core/tickHandler.ts | wc -l` must be >= 5
-
----
-
 ## Coordination Rules
 
 - Read the full spec before assigning any work: `prompts/02-architecture/spec-core.md`
@@ -305,4 +282,48 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Run 10 Core team shipped `src/core/subsystemStubs.ts` with identity functions for every subsystem, because Systems hadn't merged yet. Those stubs survived into `scaffold` and the Systems team's real work became dead code. **This is now a Grade-F violation.**
+
+**If `../systems/wireBuyer` etc. don't exist yet at your build time:**
+
+1. Prefer `import type` — most of the time `tickHandler` only needs types, not runtime.
+2. If you MUST call a stub, write it **inline** in `tickHandler.ts`, NOT in a separate file:
+   ```typescript
+   // TODO-INTEGRATION: ../systems/wireBuyer not shipped yet — identity for now
+   const updateWireBuyer = (s: GameState): GameState => s;
+   ```
+3. **Do not create:** `src/core/subsystemStubs.ts`, `src/core/projectRegistry.ts` (with local Map), or any file matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/core/`. Orchestrator's pre-merge `scripts/verify-ownership.sh` rejects these.
+4. **Do not populate** a local registry with a local `Map` / `Set` — `findProject` should delegate to `getProjectById` from `'../systems'`. If Systems isn't ready, the file simply shouldn't exist yet; let the Core build fail loudly until Systems ships, then import directly.
+
+**Pre-commit grep Core-reviewer MUST run:**
+```bash
+grep -rn "TODO-INTEGRATION" src/core/    # must list ZERO or only clearly-justified lines
+find src/core/ -name '*[Ss]tub.ts' -o -name '*[Mm]ock.ts'  # must be empty
+```
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"core","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+The orchestrator parses this file at close-out to write the next post-mortem. If you skip logging, the team's decisions vanish and Run 12 won't know what went wrong.
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-core.md`. The orchestrator appends routed failures there (format: `## {timestamp} — {layer} FAIL: {short}` + diagnostics + fix hint). Address any unresolved entry before starting new work.
+
+## Dev Server Contract (Run 13: applied to all 3 teams)
+
+The dev server is the orchestrator's job, not yours. Team-lead Claude sandboxes can't keep `npm run dev` alive — sandbox kills background processes after a short timeout.
+
+**Rules:**
+1. Do NOT try to `npm run dev` yourself.
+2. Before any Chrome MCP verification, `curl -sS -o /dev/null -w "%{http_code}" http://localhost:5173/` with a 60-second timeout.
+3. If the server is not 200 within 60s, append `DEV_SERVER_DOWN — core verification blocked` to `.swarm/tasks-orchestrator.md` and proceed with non-browser verification (vitest + tsc) only. Do NOT block your commits on browser verification.
