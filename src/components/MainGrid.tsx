@@ -28,11 +28,16 @@ import { ActivityLog } from './ActivityLog';
 export function MainGrid() {
   const state = useGameState();
 
-  const p1Panels = (
+  const p1Production = (
     <>
       <ManufacturingPanel />
       <BusinessPanel />
       <ManufacturingControls />
+    </>
+  );
+
+  const p1Tooling = (
+    <>
       <ComputingPanel />
       <StratModelingPanel />
       <InvestmentPanel />
@@ -61,15 +66,12 @@ export function MainGrid() {
   let leftColumn;
   let rightColumn;
   if (state.phase === GamePhase.UNIVERSE) {
-    leftColumn = (
-      <>
-        {p3Panels}
-        {p2Panels}
-      </>
-    );
+    leftColumn = <>{p3Panels}</>;
     rightColumn = (
       <>
-        {p1Panels}
+        {p2Panels}
+        {p1Production}
+        {p1Tooling}
         <ActivityLog />
       </>
     );
@@ -77,13 +79,19 @@ export function MainGrid() {
     leftColumn = <>{p2Panels}</>;
     rightColumn = (
       <>
-        {p1Panels}
+        {p1Production}
+        {p1Tooling}
         <ActivityLog />
       </>
     );
   } else {
-    leftColumn = <>{p1Panels}</>;
-    rightColumn = <ActivityLog />;
+    leftColumn = <>{p1Production}</>;
+    rightColumn = (
+      <>
+        {p1Tooling}
+        <ActivityLog />
+      </>
+    );
   }
 
   return (
