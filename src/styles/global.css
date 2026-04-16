@@ -29,3 +29,9 @@ body {
 * {
   box-sizing: border-box;
 }
+
+.font-data {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}

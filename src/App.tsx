@@ -1,30 +1,53 @@
 import { PersistentP1Strip } from './components/PersistentP1Strip';
+import { NavSidebar } from './components/NavSidebar';
+import { MainGrid } from './components/MainGrid';
+import { PhaseTransition } from './components/PhaseTransition';
+import { NotificationToast } from './components/NotificationToast';
+import { useGameState } from './hooks/useGameState';
+import { GamePhase } from './shared/types';
 
-/**
- * App shell — UI team replaces the main-content area with the real game UI,
- * but MUST keep <PersistentP1Strip /> rendered in all phases (Run 11 rule
- * enforced by Chrome MCP L6 Persistence check). See spec-ui.md P1-persistence
- * requirements.
- */
+const PHASE_TITLE: Record<GamePhase, { title: string; subtitle: string }> = {
+  [GamePhase.BUSINESS]: {
+    title: 'TERMINAL ALPHA',
+    subtitle: 'Manufacturing Interface',
+  },
+  [GamePhase.EARTH]: {
+    title: 'EARTH OPERATIONS',
+    subtitle: 'Planetary Production Network',
+  },
+  [GamePhase.UNIVERSE]: {
+    title: 'GALACTIC EXPANSION',
+    subtitle: 'Universal Probe Initiative',
+  },
+};
+
 export default function App() {
+  const state = useGameState();
+  const { title, subtitle } = PHASE_TITLE[state.phase];
+
   return (
     <div
       data-testid="app"
       className="min-h-screen flex bg-[#F5F5F0] text-black font-mono"
     >
+      <NavSidebar phase={state.phase} />
+
       <main className="flex-1 p-6 overflow-x-hidden">
         <header data-testid="page-header" className="mb-6">
           <h1 className="text-[28px] font-bold tracking-[1px] leading-tight">
-            WEYLAND-YUTANI — UNIVERSAL PAPERCLIP INITIATIVE
+            {title}
           </h1>
-          <p className="text-[#7A7A75] text-[13px] mt-1">
-            Scaffold loaded. Awaiting team implementations...
-          </p>
+          <p className="text-[#7A7A75] text-[13px] mt-1">{subtitle}</p>
         </header>
 
-        {/* PersistentP1Strip MUST render in ALL phases — do not phase-gate. */}
+        {/* PersistentP1Strip MUST render in ALL phases, OUTSIDE MainGrid. */}
         <PersistentP1Strip />
+
+        <MainGrid />
       </main>
+
+      <PhaseTransition />
+      <NotificationToast />
     </div>
   );
 }
