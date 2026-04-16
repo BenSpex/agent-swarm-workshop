@@ -19,9 +19,12 @@ declare global {
  * UI team owns this file but MUST NOT remove the engine bootstrap.
  */
 async function bootstrap() {
+  const enginePath = './core/engine';
   try {
-    // @ts-expect-error TODO-INTEGRATION: Core team ships src/core/engine.ts exporting createEngine
-    const { createEngine } = await import('./core/engine');
+    // TODO-INTEGRATION: Core team ships src/core/engine.ts exporting createEngine.
+    // `enginePath` indirection defeats Vite's static import-analysis so the
+    // try/catch catches ModuleNotFound at runtime when core hasn't shipped.
+    const { createEngine } = await import(/* @vite-ignore */ enginePath);
     const engine = createEngine();
     engine.load();
     engine.start();
