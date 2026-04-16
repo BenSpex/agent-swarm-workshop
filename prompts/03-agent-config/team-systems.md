@@ -176,4 +176,24 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/systems/*`. Reading `src/shared/*` is allowed. Any edit outside `src/systems/` is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/systems/*`. Reading `src/shared/*` is allowed. Any edit outside `src/systems/` is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Systems is usually the producer of deps that Core and UI consume. You rarely need stubs yourself, but:
+- **Never create `src/systems/*Stub.ts` or `src/systems/*Mock.ts`.**
+- Your barrel `src/systems/index.ts` must export REAL implementations — Core and UI import from `'../systems'` and will get whatever you ship. If your impl returns an empty array or a no-op by design, that is STILL a real impl, not a stub.
+- **Do not** lazy-initialize your own project registry; `getAllProjects` / `getAvailableProjects` / `getProjectById` live in `src/systems/projects/index.ts` and are pure functions over state. No singletons.
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"systems","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-systems.md`. Address any unresolved orchestrator-routed failure before starting new work.

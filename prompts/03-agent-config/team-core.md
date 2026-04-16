@@ -218,4 +218,39 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/core/*`. Reading `src/shared/*` is allowed. Any edit outside `src/core/` is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Run 10 Core team shipped `src/core/subsystemStubs.ts` with identity functions for every subsystem, because Systems hadn't merged yet. Those stubs survived into `scaffold` and the Systems team's real work became dead code. **This is now a Grade-F violation.**
+
+**If `../systems/wireBuyer` etc. don't exist yet at your build time:**
+
+1. Prefer `import type` — most of the time `tickHandler` only needs types, not runtime.
+2. If you MUST call a stub, write it **inline** in `tickHandler.ts`, NOT in a separate file:
+   ```typescript
+   // TODO-INTEGRATION: ../systems/wireBuyer not shipped yet — identity for now
+   const updateWireBuyer = (s: GameState): GameState => s;
+   ```
+3. **Do not create:** `src/core/subsystemStubs.ts`, `src/core/projectRegistry.ts` (with local Map), or any file matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/core/`. Orchestrator's pre-merge `scripts/verify-ownership.sh` rejects these.
+4. **Do not populate** a local registry with a local `Map` / `Set` — `findProject` should delegate to `getProjectById` from `'../systems'`. If Systems isn't ready, the file simply shouldn't exist yet; let the Core build fail loudly until Systems ships, then import directly.
+
+**Pre-commit grep Core-reviewer MUST run:**
+```bash
+grep -rn "TODO-INTEGRATION" src/core/    # must list ZERO or only clearly-justified lines
+find src/core/ -name '*[Ss]tub.ts' -o -name '*[Mm]ock.ts'  # must be empty
+```
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"core","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+The orchestrator parses this file at close-out to write the next post-mortem. If you skip logging, the team's decisions vanish and Run 12 won't know what went wrong.
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-core.md`. The orchestrator appends routed failures there (format: `## {timestamp} — {layer} FAIL: {short}` + diagnostics + fix hint). Address any unresolved entry before starting new work.

@@ -161,11 +161,13 @@ layout-theme must complete first -- all other teammates depend on the Panel comp
    - Phase 3: "Galactic Expansion" is active
    - Use `data-active="true"` or `.active` class on the current phase item
 
-5. **PHASES MUST LOOK VISUALLY DIFFERENT** — each phase transition should feel like entering a new section of the game, NOT just stacking more panels below:
-   - Phase 1: Stacked panels — Manufacturing, Business (pricing/marketing/wire buyer), Computing (ops/memory/creativity), Strategic Modeling, Projects, Activity Log.
-   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid, Matter) appear prominently. P1 panels collapse or move to secondary section.
-   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) dominate. Earlier panels collapse.
-   - The page title changes (TERMINAL ALPHA -> EARTH OPERATIONS -> GALACTIC EXPANSION) — layout reinforces the shift.
+5. **PHASES REORGANIZE VISUALLY, BUT P1 PANELS PERSIST** — the page title changes (TERMINAL ALPHA -> EARTH OPERATIONS -> GALACTIC EXPANSION) and new P2/P3 panels appear prominently, but **P1 panels never disappear**. The OG Universal Paperclips at 14.9M clips still shows Make Paperclip, Manufacturing, Business, AutoClippers, MegaClippers, Investments, Strategic Modeling — all visible and interactive.
+   - Phase 1: Manufacturing, Business (pricing/marketing/wire buyer), ManufacturingControls, Computing, Strategic Modeling, Investments, Projects, Activity Log.
+   - Phase 2: P2 panels (Drone Fleet, Factories, Power Grid, Matter) move to left column / prominent position. **Every P1 panel still renders** (possibly compact styling in right column).
+   - Phase 3: P3 panels (Probe Launcher, Probe Config, Exploration, Combat) dominate left column. **All P1 AND P2 panels still render**.
+   - **Forbidden pattern:** `{phase === GamePhase.BUSINESS && <ManufacturingPanel />}` — if you wrote a phase-conditional render around ManufacturingPanel / BusinessPanel / ManufacturingControls, you misread the spec. Delete the guard. Render unconditionally.
+   - Run 10 regression: MainGrid.tsx had separate Phase1Grid/Phase2Grid/Phase3Grid components with different panel lists. In Run 11 this is banned — there is ONE grid; phase state only affects panel ordering/styling, never panel presence. Scaffold ships `<PersistentP1Strip />` rendered from App.tsx outside MainGrid as a forcing function; do not remove it.
+   - Chrome MCP L6 (new in Run 11) verifies `clip-button`, `clip-counter`, `autoclipper-panel`, `price-display`, `wire-panel` all resolve in Phase 2 AND Phase 3. Missing any = route-back-to-UI failure.
 
 6. **Component data-testids (all required):**
    - `manufacturing-panel` — clip button + clips/sec display + unsold inventory
@@ -277,4 +279,29 @@ After a context reset:
 
 ## File Ownership Reminder
 
-You and your teammates may ONLY touch `src/components/*`, `src/hooks/*`, `src/styles/*`, `tailwind.config.ts`, `index.html`, and `public/*`. Reading `src/shared/*` is allowed. Any edit outside these directories is a Constitution Article 6 violation and will be reverted by Keel.
+You and your teammates may ONLY touch `src/components/*`, `src/hooks/*`, `src/styles/*`, `src/App.tsx`, `src/main.tsx`, `tailwind.config.ts`, `index.html`, and `public/*`. Reading `src/shared/*` is allowed. Any edit outside these directories is a Constitution Article 6 violation and will be reverted by Keel (`scripts/verify-ownership.sh` — now a real enforcement script as of Run 11, not documentation).
+
+**`src/main.tsx` note:** scaffold ships engine bootstrap pre-wired (`createEngine() → load() → start() → window.__engine`). Do NOT remove or rewrite that bootstrap — style or extend only. The scaffold also ships `<PersistentP1Strip />` rendered from `App.tsx` outside `<MainGrid />`. Do NOT remove or relocate it; style it per design.pen.
+
+## Stub Fallback Protocol (NEW in Run 11 — Constitution Article 10)
+
+Run 10 UI team shipped `src/hooks/projectsStub.ts` returning `[]`, because Systems hadn't merged yet. The stub survived; ProjectList showed "No projects" in every phase. **This is now a Grade-F violation.**
+
+**Rules:**
+1. `ProjectList.tsx` imports `getAvailableProjects` from `'../systems'` ONLY. No `projectsStub`, no `MOCK_PROJECTS`, no local arrays.
+2. `useGameState.ts` reads from `window.__engine` (set by scaffold's main.tsx). If `window.__engine` is undefined in test/SSR, fall back to a `createMockState()` from `src/hooks/mockState.ts` — that mockState file is allowed because it's clearly test-only and never shadows a sibling team's exports.
+3. **Do not create:** files matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/hooks/` except the explicitly-allowed `mockState.ts`. Orchestrator pre-merge rejects others.
+4. If Systems isn't ready: use `import type { ProjectDefinition } from '../shared/projects'` and guard with "Systems not ready" placeholder in the UI (visible to developer, not a silent empty list).
+
+## Logging (NEW in Run 11)
+
+After every significant write (new file or >50 line edit), append a line to `.swarm/logs/agent-decisions.jsonl`:
+```bash
+printf '{"ts":"%s","team":"ui","agent":"%s","file":"%s","action":"%s"}\n' \
+  "$(date -Iseconds)" "<your-agent-name>" "<path>" "<create|edit|delete>" \
+  >> .swarm/logs/agent-decisions.jsonl
+```
+
+## Task Queue (NEW in Run 11)
+
+Each monitor cycle: `tail -20 .swarm/tasks-ui.md`. Address any unresolved orchestrator-routed failure before starting new work.

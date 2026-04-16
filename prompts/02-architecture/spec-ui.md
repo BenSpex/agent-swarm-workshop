@@ -75,13 +75,17 @@ Phase 1 layout:
 - Left column: Manufacturing Panel (clip button + counter), Business Panel (pricing, demand, marketing, wire), Manufacturing Controls
 - Right column: Computing Panel, Strategic Modeling, Investment, Project List, Activity Log
 
-Phase 2 layout (reorganize, don't just stack more panels below):
-- Left column: Phase 2 panels (Drones, Factories, Power, Matter) prominent
-- Right column: Condensed P1 panels, Projects, Activity Log
+**P1 PANELS PERSIST ACROSS ALL PHASES.** This is not optional. The original Universal Paperclips (https://www.decisionproblem.com/paperclips/index2.html) keeps Make Paperclip, Manufacturing, Business (Wire/AutoClippers/MegaClippers), Investments, and Strategic Modeling **fully visible and interactive** even at 14M+ clips. Removing them in Phase 2/3 breaks the game. The scaffold ships a `<PersistentP1Strip />` rendered from `App.tsx` outside `<MainGrid />` exactly so you cannot accidentally phase-gate these elements — do not delete, hide, or conditionally render it.
 
-Phase 3 layout (reorganize again):
+Phase 2 layout (reorganize *position*, not visibility):
+- Left column: Phase 2 panels (Drones, Factories, Power, Matter) prominent
+- Right column: P1 panels (Manufacturing, Business, AutoClippers) still fully rendered, may have compact styling (reduced padding) but never removed, plus Projects, Activity Log
+
+Phase 3 layout (reorganize *position* again):
 - Left column: Phase 3 panels (Probes, Probe Config, Exploration, Combat) dominant
-- Right column: Condensed earlier-phase panels, Projects
+- Right column: P1 **AND** P2 panels still fully rendered (compact), plus Projects
+
+**Forbidden pattern:** `{phase === GamePhase.BUSINESS && <ManufacturingPanel />}` — always renders, never conditional. If you wrote that, delete the guard.
 
 ### NavSidebar.tsx (260px, left side, ALL screens)
 - data-testid="nav-sidebar"

@@ -10,7 +10,22 @@
       "Bash(git *)",
       "Bash(kill *)",
       "Bash(lsof *)",
+      "Bash(./scripts/verify-ownership.sh *)",
+      "Bash(bash scripts/verify-ownership.sh *)",
       "mcp__claude-in-chrome__*"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=\"${CLAUDE_TOOL_ARG_file_path:-${CLAUDE_TOOL_ARG_path:-unknown}}\"; T=$(date -Iseconds); printf '{\"ts\":\"%s\",\"tool\":\"%s\",\"file\":\"%s\",\"cwd\":\"%s\"}\\n' \"$T\" \"$CLAUDE_TOOL_NAME\" \"$F\" \"$PWD\" >> .swarm/logs/agent-decisions.jsonl 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   }
 }

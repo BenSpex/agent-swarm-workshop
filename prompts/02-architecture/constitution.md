@@ -1,4 +1,4 @@
-# Constitution (9 Articles)
+# Constitution (10 Articles)
 
 These articles are the law governing all agents during the build. Violations are grounds for immediate revert. Every team lead and every teammate must follow these without exception.
 
@@ -34,6 +34,31 @@ Every React component that renders game state MUST have a `data-testid` attribut
 
 ### Article 9: Context Checkpoints
 Before a context reset, every agent writes a structured checkpoint to `.swarm/checkpoints/{agent-name}.md`. After reset: read checkpoint first, then spec, then continue. Never reset mid-implementation -- finish or commit current work first. See checkpoint format below.
+
+### Article 10: No Stub Shadows
+**Local stub files that duplicate a sibling team's real export path are FORBIDDEN.** Added in Run 11 after 4 stub-shadow bugs shipped in Run 10.
+
+Banned patterns:
+- `src/core/subsystemStubs.ts` exporting identity functions with the same names as `src/systems/*.ts` — Run 10 Core shipped this; Systems' real implementations became dead code.
+- `src/hooks/projectsStub.ts` returning `[]` from `getAvailableProjects` — Run 10 UI shipped this; real registry ignored.
+- `src/core/projectRegistry.ts` with a local empty `Map` — Run 10 Core shipped this; every `BUY_PROJECT` silently no-oped.
+- Any file matching `*[Ss]tub.ts`, `*[Mm]ock.ts` under `src/core/` or `src/hooks/`.
+- Any file named `*Registry.ts` under `src/core/` that holds its own state (local `Map`, `Set`, etc.) instead of delegating to the real `src/systems/` exports.
+
+**If a sibling dep is missing at build time:**
+1. Prefer `import type` — your code compiles without the runtime dep.
+2. If you need a callable, write the identity function **inline** in the consumer file with a `// TODO-INTEGRATION` marker:
+   ```typescript
+   // TODO-INTEGRATION: ../systems/wireBuyer not shipped yet; reducer is no-op for this step
+   const updateWireBuyer = (s: GameState): GameState => s;
+   ```
+3. **Never create a new file** that re-exports a stubbed version of a sibling's module. The next team to merge won't know to delete it.
+
+**Enforcement:**
+- Pre-merge: `scripts/verify-ownership.sh` rejects any file in the banned-path list.
+- Pre-merge: orchestrator greps `TODO-INTEGRATION` in the merged diff — any match blocks merge with the message "replace with real import from sibling team".
+
+Violation = immediate revert. No exceptions.
 
 ---
 
