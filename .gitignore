@@ -7,6 +7,11 @@ dist/
 # Swarm orchestrator artifacts
 .swarm/
 
+# Claude Code session data (auto-generated)
+.claude/projects/
+.claude/scheduled_tasks.lock
+.claude/CLAUDE.md.*-backup
+
 # Worktrees (created during runs)
 worktree-*/
 

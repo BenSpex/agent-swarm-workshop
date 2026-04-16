@@ -70,12 +70,37 @@ case 'BUY_PROJECT': {
 
 ### Core-reviewer pre-commit checks (block commit if any fail)
 ```bash
+# Phase transitions present
 grep -c "spaceTravelUnlocked\|phase3Unlocked" src/core/tickHandler.ts | awk '{exit ($1<2)}' || { echo "FAIL: phase transition blocks missing"; exit 1; }
-grep -c "from.*'\.\./systems'" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: ../systems import missing"; exit 1; }
-grep -c "getProjectById" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: BUY_PROJECT not implemented via getProjectById"; exit 1; }
+
+# Real systems imports (not stub local files)
+grep -c "from.*'\.\./systems'" src/core/tickHandler.ts | awk '{exit ($1<1)}' || { echo "FAIL: ../systems import missing in tickHandler"; exit 1; }
+grep -c "from.*'\.\./systems'" src/core/actionHandlers.ts | awk '{exit ($1<1)}' || { echo "FAIL: ../systems import missing in actionHandlers"; exit 1; }
+
+# Real BUY_PROJECT impl
+grep -c "getProjectById" src/core/tickHandler.ts src/core/actionHandlers.ts | grep -v ":0" | wc -l | awk '{exit ($1<1)}' || { echo "FAIL: BUY_PROJECT not implemented via getProjectById"; exit 1; }
+
+# HARD BAN on TODO-INTEGRATION markers (Run 14 fix — Run 10/11/13 all hit this)
+if grep -rn "TODO-INTEGRATION" src/core/ 2>/dev/null; then
+  echo "FAIL: TODO-INTEGRATION markers detected in src/core/. Replace stubs with real ../systems imports before commit."
+  exit 1
+fi
+
+# Real call sites (not unused imports)
+grep -c "updateInvestment\|updateCreativity\|updateMatter\|updateSwarm\|updateProbes\|updateWireBuyer\|updateStratModeling\|checkTrustMilestone" src/core/tickHandler.ts | awk '{exit ($1<6)}' || { echo "FAIL: tickHandler not calling 6+ subsystem updaters"; exit 1; }
 ```
 
-If Systems hasn't shipped Commit #0 yet, use the TODO-INTEGRATION protocol (inline identity functions with `// TODO-INTEGRATION` markers) — but the orchestrator's pre-merge gate will reject the merge until you replace them with real imports.
+### MANDATORY pre-commit sync step (Run 14 fix)
+**Runs 10, 11, 13 all left TODO-INTEGRATION stubs unreplaced because Core built in parallel and never pulled Systems' barrel.** Before EVERY commit on `core` branch, the core-integrator MUST run:
+```bash
+git fetch origin systems 2>/dev/null
+if git rev-parse --verify origin/systems >/dev/null 2>&1; then
+  git merge origin/systems --no-edit  # auto-merges, no overlap with src/core/
+  test -f src/systems/index.ts && echo "Systems barrel landed — replace any stubs with real imports NOW" || echo "Systems barrel not yet landed"
+fi
+```
+
+**There is NO TODO-INTEGRATION fallback.** If Systems hasn't shipped their barrel yet, you wait. Do not commit identity stubs. The orchestrator's `scripts/verify-ownership.sh` rejects any merge with `// TODO-INTEGRATION` in `src/core/`, `src/hooks/`, or `src/components/` — see Run 13 post-mortem.
 
 ---
 
