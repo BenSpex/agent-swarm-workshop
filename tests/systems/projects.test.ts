@@ -154,12 +154,36 @@ describe('projects — parameterized shape + purity', () => {
           'hostile_takeover',
         ]),
       });
+      const snapshot = {
+        clips: state.clips,
+        funds: state.funds,
+        operations: state.operations,
+        creativity: state.creativity,
+        trust: state.trust,
+        flags: { ...state.flags },
+        purchasedIds: new Set(state.purchasedProjectIds),
+      };
       const next = p.effect(state);
       expect(next, `${p.id}.effect returned nullish`).toBeTruthy();
+      expect(state.clips, `${p.id}.effect mutated clips`).toBe(snapshot.clips);
+      expect(state.funds, `${p.id}.effect mutated funds`).toBe(snapshot.funds);
+      expect(state.operations, `${p.id}.effect mutated operations`).toBe(
+        snapshot.operations,
+      );
+      expect(state.creativity, `${p.id}.effect mutated creativity`).toBe(
+        snapshot.creativity,
+      );
+      expect(state.trust, `${p.id}.effect mutated trust`).toBe(snapshot.trust);
+      for (const [k, v] of Object.entries(snapshot.flags)) {
+        expect(
+          state.flags[k as keyof typeof state.flags],
+          `${p.id}.effect mutated flag ${k}`,
+        ).toBe(v);
+      }
       expect(
-        next,
-        `${p.id}.effect must return new object`,
-      ).not.toBe(state);
+        state.purchasedProjectIds.size,
+        `${p.id}.effect mutated purchasedProjectIds`,
+      ).toBe(snapshot.purchasedIds.size);
     }
   });
 
