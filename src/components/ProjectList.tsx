@@ -2,11 +2,7 @@ import { useGameState, useDispatch } from '../hooks/useGameState';
 import { formatNumber } from '../shared/engine';
 import type { ProjectDefinition, ProjectCost } from '../shared/projects';
 import { Panel } from './Panel';
-
-// TODO-INTEGRATION: replace with `import { getAvailableProjects } from '../systems'`
-// once the Systems team ships the projects registry. Until then, render a visible
-// "Systems not ready" placeholder per Constitution Article 10 (no silent empty list).
-const getAvailableProjects: ((state: unknown) => ProjectDefinition[]) | null = null;
+import { getAvailableProjects } from '../systems';
 
 function costSummary(cost: ProjectCost): string {
   const parts: string[] = [];
@@ -23,21 +19,12 @@ export function ProjectList() {
   const state = useGameState();
   const dispatch = useDispatch();
 
-  const projects: ProjectDefinition[] =
-    getAvailableProjects != null ? getAvailableProjects(state) : [];
-  const systemsReady = getAvailableProjects != null;
+  const projects: ProjectDefinition[] = getAvailableProjects(state);
 
   return (
     <Panel title="Projects" testId="project-list" id="section-projects">
       <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-1">
-        {!systemsReady ? (
-          <p
-            data-testid="project-list-placeholder"
-            className="text-[#CC3314] text-[12px] border border-[#CC3314] bg-[#FFF5F5] p-3 rounded-[2px]"
-          >
-            Systems not ready — projects list will populate after integration.
-          </p>
-        ) : projects.length === 0 ? (
+        {projects.length === 0 ? (
           <p className="text-[#7A7A75] text-[12px]">
             No available projects right now — earn more ops or trust.
           </p>
