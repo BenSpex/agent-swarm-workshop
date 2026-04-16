@@ -11,22 +11,17 @@ import {
   calculateMarketingCost as marketingCostFn,
 } from './formulas';
 
-// TODO-INTEGRATION: import { updateWireBuyer } from '../systems/wireBuyer' when Systems ships
-const updateWireBuyer = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateInvestment } from '../systems/investment' when Systems ships
-const updateInvestment = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateCreativity } from '../systems/quantum' when Systems ships
-const updateCreativity = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { checkTrustMilestone } from '../systems/trust' when Systems ships
-const checkTrustMilestone = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateMatter } from '../systems/matter' when Systems ships
-const updateMatter = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateSwarm } from '../systems/swarm' when Systems ships
-const updateSwarm = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateProbes } from '../systems/probes' when Systems ships
-const updateProbes = (s: GameState): GameState => s;
-// TODO-INTEGRATION: import { updateStratModeling } from '../systems/stratModeling' when Systems ships
-const updateStratModeling = (s: GameState): GameState => s;
+import {
+  updateWireBuyer,
+  updateInvestment,
+  updateCreativity,
+  checkTrustMilestone,
+  updateMatter,
+  updateSwarm,
+  updateProbes,
+  updateStratModeling,
+  getProjectById,
+} from '../systems';
 
 const PROBE_STAT_MAP: Record<ProbeStat, keyof GameState> = {
   speed: 'probeSpeed',
@@ -60,6 +55,25 @@ function updateOperations(s: GameState): GameState {
 
 function stepTick(s: GameState): GameState {
   let n = s;
+
+  // Phase transitions — orchestrator-required (Core's responsibility per spec).
+  if (n.phase === 1 && n.flags.spaceTravelUnlocked) {
+    n = {
+      ...n,
+      phase: 2,
+      flags: { ...n.flags, phase2Unlocked: true },
+      harvesterDrones: Math.max(n.harvesterDrones, 10),
+      messages: ['>>> PHASE 2: EARTH OPERATIONS <<<', ...n.messages].slice(0, 50),
+    };
+  }
+  if (n.phase === 2 && n.flags.phase3Unlocked) {
+    n = {
+      ...n,
+      phase: 3,
+      messages: ['>>> PHASE 3: GALACTIC EXPANSION <<<', ...n.messages].slice(0, 50),
+    };
+  }
+
   n = sellClips(n);
   n = produceAutoClips(n);
   n = produceMegaClips(n);
@@ -152,9 +166,30 @@ export function rootReducer(state: GameState, action: GameAction): GameState {
       return { ...state, memory: nextMemory, maxOperations: nextMemory * 1000 };
     }
 
-    case 'BUY_PROJECT':
-      // TODO-INTEGRATION: getProjectById from '../systems' when shipped — BUY_PROJECT is no-op until registry ships
-      return state;
+    case 'BUY_PROJECT': {
+      const def = getProjectById(action.projectId);
+      if (!def || !def.isAvailable(state)) return state;
+      if (state.purchasedProjectIds.has(action.projectId)) return state;
+      const c = def.cost;
+      if (c.operations !== undefined && state.operations < c.operations) return state;
+      if (c.creativity !== undefined && state.creativity < c.creativity) return state;
+      if (c.funds !== undefined && state.funds < c.funds) return state;
+      if (c.trust !== undefined && state.trust < c.trust) return state;
+      if (c.yomi !== undefined && state.yomi < c.yomi) return state;
+      if (c.honor !== undefined && state.honor < c.honor) return state;
+      let next: GameState = {
+        ...state,
+        operations: state.operations - (c.operations ?? 0),
+        creativity: state.creativity - (c.creativity ?? 0),
+        funds: state.funds - (c.funds ?? 0),
+        trust: state.trust - (c.trust ?? 0),
+        yomi: state.yomi - (c.yomi ?? 0),
+        honor: state.honor - (c.honor ?? 0),
+        purchasedProjectIds: new Set([...state.purchasedProjectIds, action.projectId]),
+      };
+      next = def.effect(next);
+      return next;
+    }
 
     case 'TOGGLE_WIRE_BUYER':
       if (!state.flags.wireBuyerUnlocked) return state;
