@@ -6,18 +6,16 @@ import {
   fluctuateWirePrice,
   calculateDemand,
 } from './formulas';
-
-// TODO-INTEGRATION: ../systems barrel not shipped yet — inline identities until Systems merges.
-// Each subsystem updater must be pure (GameState -> GameState). Replace these with
-// `import { ... } from '../systems';` once systems/index.ts lands.
-const updateWireBuyer = (s: GameState): GameState => s;
-const updateInvestment = (s: GameState): GameState => s;
-const updateCreativity = (s: GameState): GameState => s;
-const checkTrustMilestone = (s: GameState): GameState => s;
-const updateMatter = (s: GameState): GameState => s;
-const updateSwarm = (s: GameState): GameState => s;
-const updateProbes = (s: GameState): GameState => s;
-const updateStratModeling = (s: GameState): GameState => s;
+import {
+  updateWireBuyer,
+  updateInvestment,
+  updateCreativity,
+  checkTrustMilestone,
+  updateMatter,
+  updateSwarm,
+  updateProbes,
+  updateStratModeling,
+} from '../systems';
 
 const MAX_MESSAGES = 50;
 const WINDOW_TICKS = 10;

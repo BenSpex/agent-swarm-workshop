@@ -7,10 +7,7 @@ import {
   calculateMarketingCost,
 } from './formulas';
 import { createInitialState } from './initialState';
-
-// TODO-INTEGRATION: ../systems barrel not shipped yet — getProjectById not importable.
-// Replace with `import { getProjectById } from '../systems';` once systems/index.ts lands.
-const getProjectById = (_id: string): ProjectDefinition | undefined => undefined;
+import { getProjectById } from '../systems';
 
 const HARVESTER_COST = 50;
 const WIRE_DRONE_COST = 50;
